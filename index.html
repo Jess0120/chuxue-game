@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0a0a12">
+  <title>初雪 — 夢落下的原點</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 遊戲主容器：canvas 固定以 960×540 的邏輯解析度繪製，再由 CSS 等比縮放 -->
+  <div id="wrap">
+    <canvas id="game" width="960" height="540" aria-label="初雪 遊戲畫面"></canvas>
+
+    <!-- 觸控按鈕（手機/平板才會顯示） -->
+    <div id="touch" class="hidden" aria-hidden="true">
+      <div class="pad-left">
+        <button data-act="left"  class="tbtn">◀</button>
+        <button data-act="right" class="tbtn">▶</button>
+      </div>
+      <div class="pad-right">
+        <button data-act="jump" class="tbtn big">跳</button>
+      </div>
+    </div>
+
+    <!-- 右上角工具列 -->
+    <div id="toolbar">
+      <button id="btn-mute" title="靜音 (M)">♪</button>
+      <button id="btn-full" title="全螢幕 (F)">⛶</button>
+    </div>
+  </div>
+
+  <p id="rotate-hint">請將手機轉為橫向遊玩 ↻</p>
+
+  <!-- 一般 <script>（非 ES module），這樣直接雙擊 index.html 用 file:// 開啟也能執行 -->
+  <script src="js/engine.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/story.js"></script>
+  <script src="js/stages.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
