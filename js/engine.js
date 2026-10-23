@@ -52,6 +52,11 @@ window.CX = window.CX || {};
     bot: {},           // 自動遊玩機器人的「虛擬按鍵」
     botPressed: {},
     tapped: false,     // 本幀是否點擊了畫面（滑鼠或手指）
+    tapX: -1, tapY: -1, // 點擊位置（換算成 960×540 的邏輯座標）
+    codes: {},         // 本幀剛按下的實體按鍵（e.code），選單用
+    keyHit(...cs) { return cs.some(c => this.codes[c]); },
+    /** 這一幀是否點到了某個矩形區域（邏輯座標） */
+    tapIn(r) { return this.tapped && this.tapX >= r.x && this.tapX <= r.x + r.w && this.tapY >= r.y && this.tapY <= r.y + r.h; },
     isDown(a) { return !!(this.down[a] || this.bot[a]); },
     wasPressed(a) { return !!(this.pressed[a] || this.botPressed[a]); },
     /** 「確認」：空白鍵、Enter、點擊畫面都算 */
@@ -59,7 +64,7 @@ window.CX = window.CX || {};
     press(a) { if (!this.down[a]) this.pressed[a] = true; this.down[a] = true; },
     release(a) { this.down[a] = false; },
     /** 每幀結束時呼叫，清掉「剛按下」狀態 */
-    endFrame() { this.pressed = {}; this.botPressed = {}; this.tapped = false; },
+    endFrame() { this.pressed = {}; this.botPressed = {}; this.tapped = false; this.codes = {}; },
   };
   CX.input = Input;
 
@@ -67,6 +72,7 @@ window.CX = window.CX || {};
     if (e.code === 'KeyM') CX.audio.toggleMute();
     if (e.code === 'KeyF') CX.toggleFullscreen();
     const a = KEYMAP[e.code];
+    if (!e.repeat) Input.codes[e.code] = true;
     if (a) { e.preventDefault(); if (!e.repeat) Input.press(a); }
     CX.audio.unlock();
   });
@@ -78,6 +84,9 @@ window.CX = window.CX || {};
     canvas.addEventListener('pointerdown', e => {
       e.preventDefault();
       Input.tapped = true;
+      const r = canvas.getBoundingClientRect();
+      Input.tapX = (e.clientX - r.left) / r.width * CX.W;
+      Input.tapY = (e.clientY - r.top) / r.height * CX.H;
       CX.audio.unlock();
       if (e.pointerType === 'touch') CX.showTouch(true);
     });
@@ -251,6 +260,34 @@ window.CX = window.CX || {};
     }
   }
   CX.Weather = Weather;
+
+  /* =========================================================
+   * 記憶碎片存檔（localStorage）
+   *   碎片編號格式「章-序號」，例如 '1-3' = 第一章第 3 片。
+   *   記錄的是「曾經拾回過」的聯集：跨多次遊玩累計，重來或死亡不會重複計算。
+   * ========================================================= */
+  const MEM_KEY = 'chuxue.memories.v1';
+  CX.memory = {
+    _set: null,
+    _load() {
+      if (this._set) return this._set;
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(MEM_KEY) || '[]'); } catch (e) { arr = []; }
+      this._set = new Set(Array.isArray(arr) ? arr : []);
+      return this._set;
+    },
+    _save() { try { localStorage.setItem(MEM_KEY, JSON.stringify([...this._load()])); } catch (e) { /* 無痕模式等情況存不了就算了 */ } },
+    has(id) { return this._load().has(id); },
+    /** 拾回一片；回傳 true 代表這是第一次拾回 */
+    add(id) { const s = this._load(); if (s.has(id)) return false; s.add(id); this._save(); return true; },
+    /** 所有碎片的編號（依 story.js 的 CX.MEMORIES） */
+    allIds() { const ids = []; Object.keys(CX.MEMORIES || {}).forEach(ch => CX.MEMORIES[ch].forEach((m, i) => ids.push(`${ch}-${i + 1}`))); return ids; },
+    count() { return this.allIds().filter(id => this.has(id)).length; },
+    total() { return this.allIds().length; },
+    complete() { const t = this.total(); return t > 0 && this.count() === t; },
+    text(id) { const [ch, i] = id.split('-').map(Number); const m = CX.MEMORIES[ch] && CX.MEMORIES[ch][i - 1]; return m ? m.text : ''; },
+    reset() { this._set = new Set(); this._save(); },
+  };
 
   /* ---------- 圖片載入 ---------- */
   CX.images = {};

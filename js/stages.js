@@ -46,17 +46,58 @@
     }
     /** 收集物判定（世界座標的圓形） */
     collect(box) {
-      for (const f of this.frags) {
-        if (f.got) continue;
-        if (Math.abs(f.x - (box.x + box.w / 2)) < 26 && Math.abs(f.y - (box.y + box.h / 2)) < 44) {
-          f.got = true; this.got++; audio.sfx('pick');
-          this.popup('記憶碎片', f.x, f.y - 20, { size: 18, color: '#cfe0ff' });
-        }
-      }
+      this.frags.forEach((f, i) => {
+        if (f.got) return;
+        if (Math.abs(f.x - (box.x + box.w / 2)) < 26 && Math.abs(f.y - (box.y + box.h / 2)) < 44) this.awardFrag(i, f.x, f.y - 20);
+      });
+    }
+    /** 拾回第 i 片記憶碎片：本章計數＋存進圖鑑＋顯示回憶文字 */
+    awardFrag(i, wx, wy) {
+      const f = this.frags[i];
+      if (!f || f.got) return;
+      f.got = true; this.got++; audio.sfx('pick');
+      const id = `${this.id}-${i + 1}`;
+      const isNew = CX.memory.add(id);
+      CX.stats.found.add(id);
+      if (wx != null) this.popup(isNew ? '記憶碎片' : '記憶碎片（已收錄）', wx, wy, { size: 18, color: '#cfe0ff' });
+      const text = CX.memory.text(id) || '……';
+      this.toast = { text, id, t: 0, life: Math.min(6, 3 + text.length * .06), isNew };
+      console.log('[memory]', id, isNew ? 'new' : 'again', text);
+    }
+    /** 畫出尚未撿到的碎片；圖鑑裡已經有的會畫得比較淡 */
+    drawFrags(ctx, t) {
+      this.frags.forEach((f, i) => {
+        if (f.got) return;
+        ctx.save(); ctx.globalAlpha = CX.memory.has(`${this.id}-${i + 1}`) ? .45 : 1;
+        CX.drawFragment(ctx, f.x, f.y, t); ctx.restore();
+      });
+    }
+    /** 拾回碎片時，畫面下方短暫出現的回憶文字 */
+    drawToast(ctx) {
+      const m = this.toast; if (!m) return;
+      const a = clamp(m.t * 4, 0, 1) * clamp((m.life - m.t) * 2, 0, 1);
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha = a;
+      ctx.font = CX.font(17);
+      const lines = CX.wrapText(ctx, m.text, 680).slice(0, 3);
+      const bh = 40 + lines.length * 26, bw = 780, bx = (W - bw) / 2, by = this.toastTop ? 74 : H - 18 - bh;
+      ctx.fillStyle = 'rgba(8,12,28,.86)'; CX.roundRect(ctx, bx, by, bw, bh, 12); ctx.fill();
+      ctx.strokeStyle = 'rgba(190,210,255,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+      CX.drawFragment(ctx, bx + 30, by + bh / 2, this.t);
+      const [ch, n] = m.id.split('-');
+      CX.text(ctx, `記憶碎片　${CX.STAGE_INFO[ch].no}・${n}${m.isNew ? '　NEW' : ''}`, bx + 58, by + 18, 13, m.isNew ? '#ffe0a0' : '#aebce0', { align: 'left' });
+      ctx.fillStyle = '#eef2ff'; ctx.textBaseline = 'top'; ctx.font = CX.font(17);
+      lines.forEach((ln, k) => ctx.fillText(ln, bx + 58, by + 32 + k * 26));
+      ctx.restore();
     }
 
     /* ---- 主迴圈 ---- */
     update(dt) {
+      if (!this._fragChecked) {
+        this._fragChecked = true;
+        const want = (CX.MEMORIES[this.id] || []).length;
+        if (want !== this.frags.length) console.warn(`[memory] 第 ${this.id} 章有 ${this.frags.length} 片碎片，但 story.js 寫了 ${want} 段文字`);
+      }
       this.t += dt; this.stateT += dt;
       if (CX.DEBUG.auto) this.bot(dt);
       if (this.status === 'intro') {
@@ -78,6 +119,7 @@
       }
       this.shakeAmt *= Math.pow(.02, dt); this.flashAmt = Math.max(0, this.flashAmt - dt * 1.5);
       this.popups.forEach(p => p.t += dt); this.popups = this.popups.filter(p => p.t < p.life);
+      if (this.toast) { this.toast.t += dt; if (this.toast.t > this.toast.life) this.toast = null; }
       this.weather.update(dt, this.wind || 0);
     }
     idle(dt) {}       // 勝敗畫面時讓背景繼續動（子類別可覆寫）
@@ -101,6 +143,7 @@
       ctx.restore();
       if (this.flashAmt > 0) { ctx.fillStyle = this.flashColor; ctx.globalAlpha = this.flashAmt; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
       if (this.status !== 'intro') this.drawHUD(ctx);
+      this.drawToast(ctx);
       if (this.status === 'intro') this.drawIntro(ctx);
       if (this.status === 'win') this.drawBanner(ctx, '— 章節完成 —', `記憶碎片 ${this.got} / ${this.frags.length}`);
       if (this.status === 'lose') this.drawLose(ctx);
@@ -129,7 +172,8 @@
       CX.text(ctx, this.info.name, W / 2, 225, 56, '#f2f4ff', { alpha: a, bold: true, shadow: '#7f9cff' });
       CX.text(ctx, this.info.goal, W / 2, 310, 20, '#dde2f2', { alpha: a });
       CX.text(ctx, CX.touchWanted ? this.info.touch : this.info.keys, W / 2, 360, 18, '#9fb0d8', { alpha: a });
-      CX.text(ctx, '（按任意鍵開始）', W / 2, 420, 15, '#7884a6', { alpha: a * (.5 + .5 * Math.sin(this.t * 4)) });
+      if (this.info.hint) CX.text(ctx, this.info.hint, W / 2, 392, 16, '#cfe0ff', { alpha: a });
+      CX.text(ctx, '（按任意鍵開始）', W / 2, 425, 15, '#7884a6', { alpha: a * (.5 + .5 * Math.sin(this.t * 4)) });
     }
     drawBanner(ctx, title, sub) {
       const a = clamp(this.stateT * 3, 0, 1);
@@ -228,7 +272,8 @@
       this.endX = 2960; this.goalX = 2860;
       this.p = makeBody(160, 460 - 84);
       this.hood = { x: -160, y: 460 };
-      [[330, 420], [865, 290], [1150, 230], [1300, 220], [1960, 130], [2480, 60], [2700, 90]].forEach(([x, y]) => this.frags.push({ x, y }));
+      // 記憶碎片位置。懸在海面上的幾片，高度對準「在邊緣全力起跳」的拋物線，玩家照正常跳法就拿得到
+      [[330, 420], [865, 200], [1150, 230], [1300, 130], [1945, 50], [2465, 16], [2700, 90]].forEach(([x, y]) => this.frags.push({ x, y }));
       this.events = [7, 17];      // 背景槍聲的時間點（不會造成傷害，只是氣氛）
     }
     progress() { return this.p.x / this.goalX; }
@@ -286,7 +331,7 @@
       // 終點：月光下的貨櫃頂端
       ctx.fillStyle = 'rgba(200,215,255,.12)'; ctx.fillRect(this.goalX - 10, 0, 100, 130);
       CX.text(ctx, '↓ 最上層', this.goalX + 40, 100 + Math.sin(t * 3) * 4, 16, '#dfe6ff');
-      for (const f of this.frags) if (!f.got) CX.drawFragment(ctx, f.x, f.y, t);
+      this.drawFrags(ctx, t);
       // 斗篷男與雨真
       CX.drawHood(ctx, this.hood.x, this.hood.y, { t, smoke: true, alpha: .95 });
       const p = this.p;
@@ -322,6 +367,10 @@
       this.finalStart = tt + .6;
       for (let i = 0; i < 4; i++) this.beats.push({ time: this.finalStart + i * .8, hit: false, missed: false, vol: 1, final: i });
       this.clock = 0; this.combo = 0; this.hits = 0;
+      // 記憶碎片：節奏關沒有雪花可撿，改成連續不失誤的獎勵
+      this.COMBO_FRAGS = [3, 6, 10];
+      this.toastTop = true;       // 下方是判定文字，回憶文字改顯示在上方
+      this.COMBO_FRAGS.forEach(n => this.frags.push({ combo: n }));
       this.pulse = 0;
       this.weather = new CX.Weather('snow', .5);
     }
@@ -371,6 +420,11 @@
     judge(b, label, color, snd) {
       b.hit = true; this.hits++; this.combo++; audio.sfx(snd, .6);
       this.popup(label + (this.combo > 2 ? `　×${this.combo}` : ''), W / 2, 460, { world: false, color, size: 24 });
+      const fi = this.COMBO_FRAGS.indexOf(this.combo);
+      if (fi >= 0 && !this.frags[fi].got) {
+        this.awardFrag(fi);
+        this.popup(`連續 ${this.combo} 拍！記憶碎片`, W / 2, 400, { world: false, color: '#cfe0ff', size: 20, life: 1.8 });
+      }
     }
     /** 最後一拍沒抓到：重新倒數一次（扣了血但不必整關重來） */
     retryFinal() {
@@ -432,7 +486,7 @@
       // 第二階段的箱子（要跳過）
       this.crates = [2200, 2440, 2700].map((x, i) => ({ x, y: this.ground - (i === 1 ? 56 : 42), w: 44, h: i === 1 ? 56 : 42 }));
       this.solids = [{ x: -200, y: this.ground, w: this.endX + 400, h: 100 }, ...this.crates];
-      [[565, 430], [915, 430], [1255, 430], [1620, 430], [2222, 380], [2462, 360], [2850, 400]].forEach(([x, y]) => this.frags.push({ x, y }));
+      [[565, 430], [915, 430], [1255, 430], [1620, 430], [2222, 315], [2462, 310], [2850, 400]].forEach(([x, y]) => this.frags.push({ x, y }));
       this.rnd = CX.seeded(77);
       this.gaze = 'dong'; this.gazeT = 0; this.gazeDur = 2.4;
       this.phase = 1; this.fireX = -999; this.boomT = -1;
@@ -529,7 +583,7 @@
       ctx.fillStyle = '#0c0f18'; ctx.fillRect(this.exitX, G - 160, 120, 160);
       ctx.fillStyle = 'rgba(255,230,170,.25)'; ctx.fillRect(this.exitX + 20, G - 130, 80, 130);
       CX.text(ctx, '出口', this.exitX + 60, G - 175, 18, '#ffe9c0');
-      for (const f of this.frags) if (!f.got) CX.drawFragment(ctx, f.x, f.y, t);
+      this.drawFrags(ctx, t);
       // 東宇與斗篷男（爆炸後消失在火光中）
       if (this.fireX < -900) {
         const watching = this.gaze !== 'dong';
@@ -668,7 +722,7 @@
         else if (o.type === 'fence') { ctx.fillStyle = '#8a6a3c'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.fillStyle = '#c33'; ctx.fillRect(o.x, o.y + 6, o.w, 6); ctx.fillStyle = '#eee'; ctx.fillRect(o.x, o.y + 18, o.w, 6); }
         else { ctx.fillStyle = '#3e5a3a'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.fillStyle = '#2c4029'; ctx.fillRect(o.x - 3, o.y, o.w + 6, 7); }
       }
-      for (const f of this.frags) if (!f.got) CX.drawFragment(ctx, f.x, f.y, t);
+      this.drawFrags(ctx, t);
       ctx.restore();
       // 遠方東宇的背影（越跑越遠，代表她趕不上）
       const dongX = 620 + Math.min(260, this.dist * .03);
