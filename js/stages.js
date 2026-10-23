@@ -346,9 +346,9 @@
         const next = this.beats.find(b => !b.hit && !b.missed);
         if (next) {
           const d = Math.abs(this.clock - next.time);
-          if (next.final != null && next.final < 3 && d < .3) {
-            // 倒數 3、2、1 只要聽，不要按
-            this.popup('還不是時候…', W / 2, 460, { world: false, color: '#ffd59a', size: 20 });
+          if (next.final != null && next.final < 3) {
+            // 倒數 3、2、1 只要聽，不要按（按了只提示，不扣血）
+            if (d < .45) this.popup('還不是時候…', W / 2, 460, { world: false, color: '#ffd59a', size: 20 });
           } else if (d < .12) { this.judge(next, '完美', '#bfe3ff', 'perfect'); }
           else if (d < .24) { this.judge(next, '不錯', '#e0e8ff', 'good'); }
           else if (d < .45) {
@@ -361,7 +361,9 @@
       }
       // 倒數的前三拍自動算通過
       for (const b of this.beats) if (b.final != null && b.final < 3 && !b.hit && this.clock > b.time + .25) { b.hit = true; this.hits++; }
-      if (this.beats.every(b => b.hit) && this.status === 'play') {
+      // 過關條件：最後一拍抓到，且前面每一拍都已判定（抓到或錯過都算，錯過只扣血）
+      const last = this.beats.find(b => b.final === 3);
+      if (last.hit && this.beats.every(b => b.hit || b.missed) && this.status === 'play') {
         this.popup('就是現在。', W / 2, 220, { world: false, size: 44, life: 1.8, color: '#ffffff' });
         this.win();
       }
