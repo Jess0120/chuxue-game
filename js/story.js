@@ -218,8 +218,48 @@
     { type: 'cut', id: 'ch2_after', bgm: 'night', weather: 'none' },
     { type: 'cut', id: 'ch2_gate', bgm: 'snow', weather: 'none' },
     // ── 第 3～4 章：製作中 ──
-    { type: 'checkpoint', id: 'ch3', name: '第三章　港口（製作中）' },
-    { type: 'cut', id: 'wip3', bgm: 'snow', weather: 'none' },
+    // ── 第 3 章〈港口〉（story-ch3.js）──
+    { type: 'checkpoint', id: 'ch3', name: '第三章　港口' },
+    { type: 'cut', id: 'ch3_title', bgm: 'none', weather: 'none', fragTotal: 5 },
+    { type: 'cut', id: 'ch3_inn', bgm: 'snow', snow: true },
+    { type: 'checkpoint', id: 'ch3b', name: '第三章　港口・第七區' },       // 劇本：存檔點在 3-2 開頭
+    { type: 'cut', id: 'ch3_port', bgm: 'night', snow: true },
+    { type: 'jump', to: 'ch3_talk', cond: '!ran3' },
+    // 3-3：照著夢走
+    { type: 'cut', id: 'ch3_run', snow: true },
+    { type: 'stage', id: 'run3' },
+    { type: 'cut', id: 'ch3_top', bgm: 'none', snow: true },
+    { type: 'stage', id: 'listen3' },
+    { type: 'cut', id: 'ch3_knife', bgm: 'none', snow: true },
+    { type: 'jump', to: 'ch3_talk', cond: 'threwKnife' },
+    { type: 'jump', to: 'ch3_end1', cond: 'goneAlone && !toldDream && trustDong<2' },
+    { type: 'cut', id: 'ch3_stab', bgm: 'tense', snow: true },
+    { type: 'jump', to: 'ch3_gas' },
+    // 中間結局①　沉海：Game Over，回到 3-2 存檔點
+    { type: 'label', label: 'ch3_end1' },
+    { type: 'cut', id: 'ch3_end1', bgm: 'none', weather: 'none' },
+    { type: 'retry', to: 'ch3b', set: { dreamRetry: true } },
+    // 3-4：不跑／把刀丟進海裡
+    { type: 'label', label: 'ch3_talk' },
+    { type: 'cut', id: 'ch3_talk', bgm: 'snow', snow: true },
+    // 3-5：鋼瓶區前 → 中間結局②③④
+    { type: 'label', label: 'ch3_gas' },
+    { type: 'cut', id: 'ch3_gas', bgm: 'tense', snow: true },
+    { type: 'jump', to: 'ch3_end3', cond: 'midEnd==3' },
+    { type: 'jump', to: 'ch3_end4', cond: 'midEnd==4' },
+    { type: 'cut', id: 'ch3_end2a', bgm: 'tense', snow: true },
+    { type: 'stage', id: 'fire3' },
+    { type: 'cut', id: 'ch3_end2b', bgm: 'none', weather: 'none' },
+    { type: 'jump', to: 'ch4' },
+    { type: 'label', label: 'ch3_end3' },
+    { type: 'cut', id: 'ch3_end3', bgm: 'none', snow: true },
+    { type: 'jump', to: 'ch4' },
+    { type: 'label', label: 'ch3_end4' },
+    { type: 'cut', id: 'ch3_end4', bgm: 'none', snow: true },
+    // ── 第 4 章：製作中 ──
+    { type: 'label', label: 'ch4' },
+    { type: 'checkpoint', id: 'ch4', name: '第四章　初雪（製作中）' },
+    { type: 'cut', id: 'wip4', bgm: 'snow', weather: 'none' },
     // 延伸結局・原點：拾回全部碎片才播放（暫掛在這裡；第 4 章完成後移到 ch4 尾聲之後）
     { type: 'cut', id: 'hidden', bgm: 'snow', snow: true, cond: 'allMemories' },
     { type: 'end' },

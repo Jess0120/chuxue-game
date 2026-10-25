@@ -413,7 +413,7 @@
       // 過關條件：最後一拍抓到，且前面每一拍都已判定（抓到或錯過都算，錯過只扣血）
       const last = this.beats.find(b => b.final === 3);
       if (last.hit && this.beats.every(b => b.hit || b.missed) && this.status === 'play') {
-        this.popup('就是現在。', W / 2, 220, { world: false, size: 44, life: 1.8, color: '#ffffff' });
+        this.popup(this.finalWord || '就是現在。', W / 2, 220, { world: false, size: 44, life: 1.8, color: '#ffffff' });
         this.win();
       }
     }
@@ -517,7 +517,7 @@
         this.sweep = this.gazeT / this.gazeDur;
         const moving = Math.abs(this.p.vx) > 25 || !this.p.onGround;
         if (moving && !this.inCover() && !this.spotCD) {
-          this.spotCD = true; this.damage('被斗篷男發現了……');
+          this.spotCD = true; this.damage(`被${this.hoodName || '斗篷男'}發現了……`);
           this.popup('被發現了！', this.p.x, this.p.y - 20, { color: '#ff8090' });
           this.popup('東宇：「看著我！」', 200, 140, { color: '#ffd9a8', size: 20, world: false });
           this.gaze = 'dong'; this.gazeT = 0; this.gazeDur = 2.2;   // 東宇挺身吸引注意
@@ -618,7 +618,7 @@
       this.weather.draw(ctx, .8);
       CX.vignette(ctx, .6);
       if (this.phase === 1 && this.status === 'play') {
-        const label = { dong: ['斗篷男正盯著東宇 — 快走！', '#bfe8c8'], warn: ['！他要轉過來了', '#ffcf80'], watch: ['紅光掃視中 — 停下或躲進陰影', '#ff8a98'] }[this.gaze];
+        const label = { dong: [`${this.hoodName || '斗篷男'}正盯著東宇 — 快走！`, '#bfe8c8'], warn: ['！他要轉過來了', '#ffcf80'], watch: ['紅光掃視中 — 停下或躲進陰影', '#ff8a98'] }[this.gaze];
         CX.text(ctx, label[0], W / 2, 92, 20, label[1], { stroke: 'rgba(0,0,0,.6)' });
       }
     }
@@ -738,5 +738,6 @@
   }
 
   CX.STAGES = { 1: Stage1, 2: Stage2, 3: Stage3, 4: Stage4 };
+  CX.STAGE_CLASSES = { Stage1, Stage2, Stage3, Stage4, makeBody, CONTAINER };   // 第 3 章起的縮短版關卡會繼承這些類別
   CX.Stage = Stage;      // 第 2 章起的新關卡（stage-door.js）繼承用
 })(window.CX);

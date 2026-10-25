@@ -231,6 +231,7 @@
       const s = this.cur;
       if (s.sfx) audio.sfx(s.sfx, .8);
       this.shakeAmt = s.shake || 0;
+      if (s.flash) { this.flashA = .85; this.flashC = s.flash; }
       if (!s.choice) CX.applyEffects(s);
       if (s.frag) CX.awardMemory(s.frag);
       if (s.weather) { this.weather.set(s.weather === 'none' ? 'snow' : s.weather, s.weather === 'none' ? 0 : .8); this.isRain = s.weather === 'rain'; }
@@ -288,6 +289,7 @@
       this.t += dt; this.fadeT = Math.min(1, this.fadeT + dt * 2.2);
       this.chars = Math.min(this.len, this.chars + dt * 32);
       this.shakeAmt *= Math.pow(.03, dt);
+      if (this.flashA) this.flashA *= Math.pow(.02, dt);
       this.weather.update(dt, this.isRain ? 0 : 6);
       const ch = this.chars >= this.len && this.choices;
       if (ch && ch.length) {
@@ -298,7 +300,7 @@
           else if (input.keyHit(...OK_KEYS)) return this.choose(this.sel);
           for (let k = 0; k < ch.length && k < 4; k++) if (input.keyHit('Digit' + (k + 1), 'Numpad' + (k + 1))) return this.choose(k);
         }
-        if (CX.DEBUG.auto && this.t > .8) return this.choose(Math.min(CX.DEBUG.pick, ch.length - 1));
+        if (CX.DEBUG.auto && this.t > .8) { const q = CX.DEBUG.picks; const k = q && q.length ? q.shift() : CX.DEBUG.pick; return this.choose(Math.min(k, ch.length - 1)); }
         return;
       }
       // 畫面上可以點的雪花（第 2 章起）：點中就拾回，不翻頁
@@ -309,15 +311,18 @@
       }
       if (input.wasPressed('back')) { this.skipAhead(); return; }        // Esc 跳過（遇到選項會停下）
       if (s.lock) { if (this.t > (s.hold || 1.5)) this.advance(); return; }   // 刻意空白格：不能手動翻，時間到自動翻
-      if (this.t > .25 && input.confirm()) this.advance();
+      const minT = s.diff && this.chars >= this.len ? 1.2 : .25;          // 與夢不同的句子：多停一下才能翻
+      if (this.t > minT && input.confirm()) this.advance();
       // 沒有文字的格（標題卡、簡訊畫面）：hold 秒後自動翻頁
       if (!this.len && this.t > (s.hold || 2.4)) this.advance();
       // 自動遊玩／快轉：文字顯示完就自動翻頁
-      if ((CX.DEBUG.auto || CX.DEBUG.fast) && this.chars >= this.len && this.t > .5) this.advance();
+      if ((CX.DEBUG.auto || CX.DEBUG.fast) && this.chars >= this.len && this.t > (s.diff ? 1.4 : .5)) this.advance();
     }
     drawBg(c, s, zoom, pan) {
+      if (s.flip) { c.save(); c.translate(W, 0); c.scale(-1, 1); }     // 左右反轉重用插圖（第 3 章結局④）
       if (s.img) CX.drawCover(c, CX.images[s.img], 0, 0, W, H, zoom, pan);
       else if (s.bg) CX.drawBackdrop(c, s.bg, this.t);
+      if (s.flip) c.restore();
     }
     draw(c) {
       const s = this.cur;
@@ -331,7 +336,11 @@
       this.drawBg(c, s, 1.02 + k * .08, (k - .5) * -16);   // 緩慢推鏡
       c.globalAlpha = 1;
       if (s.tint === 'cold') { c.fillStyle = 'rgba(30,60,130,.28)'; c.fillRect(-20, -20, W + 40, H + 40); }   // 回放段的冷藍色調
-      c.restore();
+      if (s.tint === 'frost') {                                         // 第 3 章：同一個港口，地上多了一層很薄的雪
+        const g = c.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(235,240,250,0)'); g.addColorStop(1, 'rgba(235,240,250,.38)');
+        c.fillStyle = g; c.fillRect(-20, H * .55, W + 40, H * .45 + 20); c.fillStyle = 'rgba(10,16,34,.18)'; c.fillRect(-20, -20, W + 40, H + 40);
+      }
+      if (this.flashA > .01) { c.fillStyle = this.flashC; c.globalAlpha = this.flashA; c.fillRect(-20, -20, W + 40, H + 40); c.globalAlpha = 1; }      c.restore();
       this.weather.draw(c, .8);
       if (s.tag) CX.text(c, s.tag, W - 104, 25, 14, s.tint === 'cold' ? '#b8d0ff' : 'rgba(240,242,250,.85)', { align: 'right', stroke: 'rgba(0,0,0,.55)', strokeW: 3 });
       const hs = this.hotspot;
@@ -348,7 +357,8 @@
         c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, 0, W, H);
         CX.text(c, cap, W / 2, 150, s.caption ? 52 : 64, '#e6e6ea', { bold: true, alpha: clamp(this.t, 0, 1), shadow: '#000' });
       }
-      if (s.card) CX.text(c, s.card, W / 2, s.text ? 200 : H / 2, 46, '#eef0f8', { bold: true, alpha: clamp(this.t / 1.2, 0, 1), shadow: '#8fa8ff', blur: 20 });
+      if (s.card) CX.text(c, s.card, W / 2, s.text ? 200 : s.cardSub ? H / 2 - 24 : H / 2, 46, '#eef0f8', { bold: true, alpha: clamp(this.t / 1.2, 0, 1), shadow: '#8fa8ff', blur: 20 });
+      if (s.cardSub) CX.text(c, s.cardSub, W / 2, H / 2 + 40, 22, '#d8dceb', { alpha: clamp((this.t - 1) / 1.2, 0, 1) });
       if (s.footnote) CX.text(c, s.footnote, 24, 22, 13, 'rgba(235,238,248,.75)', { align: 'left', stroke: 'rgba(0,0,0,.5)', strokeW: 3 });
       if (this.len) this.drawBox(c, s);
       const ch = this.chars >= this.len && this.choices;
@@ -356,6 +366,7 @@
         c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, W, H);
         this.choiceRects(ch.length).forEach((r, i) => drawButton(c, r, ch[i].text, { selected: i === this.sel, size: 18, color: ch[i].dim ? 'rgba(170,176,190,.75)' : undefined }));
         if (!CX.touchWanted) CX.text(c, '↑ ↓ 選擇　Enter 決定', W / 2, 396, 13, 'rgba(220,226,245,.6)');
+        if (s.choiceNote && CX.evalCond(s.choiceNoteIf)) CX.text(c, s.choiceNote, W / 2, this.choiceRects(ch.length)[0].y - 24, 15, 'rgba(200,214,255,.8)', { stroke: 'rgba(0,0,0,.6)', strokeW: 3 });
       }
       CX.text(c, CX.touchWanted ? '' : 'Esc 跳過劇情', W - 70, 530, 12, 'rgba(255,255,255,.45)');
     }
@@ -385,7 +396,7 @@
       }
       c.save();
       const q = who && !who.noQuote;                       // 東宇的回放旁白等：有名牌、不加引號
-      c.font = CX.font(who ? 22 : 21); c.fillStyle = s.em ? '#ffe6b0' : who ? (who.textColor || '#ffffff') : '#e4e8f6'; c.textBaseline = 'top';
+      c.font = CX.font(who ? 22 : 21); c.fillStyle = s.diff ? DIFF_COLOR : s.em ? '#ffe6b0' : who ? (who.textColor || '#ffffff') : '#e4e8f6'; c.textBaseline = 'top';
       const shown = s.text.slice(0, Math.floor(this.chars));
       const lines = CX.wrapText(c, (q ? '「' : '') + shown + (q && this.chars >= s.text.length ? '」' : ''), bx + bw - tx - 30);
       lines.slice(0, 3).forEach((ln, i) => c.fillText(ln, tx, by + 22 + i * 32));
@@ -400,6 +411,8 @@
    *   objects：{ id, kind, label, x,y,w,h, lines:[過場格…], after:[先調查完的 id], exit }
    *   點物件（或 ← → 選、Enter 決定）就播放它的 lines；全部調查完才會出現 exit 物件。
    * ========================================================= */
+  /** 第 3 章起：劇本粗體句（與夢不同的地方）用的字色 */
+  const DIFF_COLOR = '#ffb98a';
   class ExploreScene {
     constructor(id, step = {}) {
       this.id = id; this.def = CX.EXPLORE[id]; this.step = step;
@@ -550,12 +563,21 @@
       else if (step.type === 'explore') { if (step.bgm) audio.bgm(step.bgm); this.scene = new ExploreScene(step.id, step); }
       else if (step.type === 'checkpoint') { CX.checkpoint.save(step.id, step.name); return this.enter(i + 1); }
       else if (step.type === 'label') return this.enter(i + 1);
+      // Game Over（第 3 章結局①）：回到指定的存檔點，變數還原成存檔當時的樣子，再套上 step.set
+      else if (step.type === 'retry') {
+        const j = CX.FLOW.findIndex(f => f.type === 'checkpoint' && f.id === step.to);
+        const cp = CX.checkpoint.load();
+        if (cp && cp.id === step.to) { CX.resetVars(); Object.assign(CX.vars, JSON.parse(JSON.stringify(cp.vars || {}))); }
+        Object.assign(CX.vars, step.set || {}); CX.stats.retries = (CX.stats.retries || 0) + 1;
+        console.log('[retry] →', step.to, JSON.stringify(step.set || {}));
+        return this.enter(j < 0 ? i + 1 : j);
+      }
       else if (step.type === 'jump') { const j = CX.FLOW.findIndex(f => f.label === step.to); if (j < 0) console.warn('[flow] 找不到 label', step.to); return this.enter(j < 0 ? i + 1 : j); }
       else this.scene = new EndScene();
       input.down = {};
     },
     startStage(id) {
-      const quiet = id === 2 || id === 'door';        // 節奏關：不放背景音樂、不顯示方向鍵
+      const quiet = id === 2 || id === 'door' || id === 'listen3';        // 節奏關：不放背景音樂、不顯示方向鍵
       audio.bgm(quiet ? 'none' : id === 4 ? 'rain' : 'tense');
       this.scene = new CX.STAGES[id](this);
       CX.setTouchLayout(quiet ? 'none' : id === 4 ? 'jump' : 'full');

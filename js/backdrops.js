@@ -221,6 +221,59 @@
     },
   });
 
+  /* ---------- 第 3 章〈港口〉：現實的港口之夜（風雪） ---------- */
+  /** 照明塔：lit=false 時燈是暗的 */
+  function lightTower(c, x, lit, t) {
+    c.fillStyle = '#15181f'; c.fillRect(x - 5, 60, 10, 380);
+    c.fillStyle = '#1d212a'; c.fillRect(x - 34, 52, 68, 16);
+    for (let i = 0; i < 4; i++) {
+      const on = lit && !(i === 3 && Math.sin(t * 9) > .7);
+      c.fillStyle = on ? '#fff4d8' : '#2a2e38'; c.fillRect(x - 30 + i * 16, 54, 12, 10);
+    }
+    if (lit) { const g = c.createRadialGradient(x, 70, 10, x, 260, 300); g.addColorStop(0, 'rgba(255,240,200,.28)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(x - 300, 60, 600, 440); }
+  }
+  /** 地上一層很薄的雪 */
+  function snowFloor(c, y) {
+    c.fillStyle = '#272b33'; c.fillRect(0, y, W, H - y);
+    const g = c.createLinearGradient(0, y, 0, H); g.addColorStop(0, 'rgba(230,236,246,.32)'); g.addColorStop(1, 'rgba(230,236,246,.12)');
+    c.fillStyle = g; c.fillRect(0, y, W, H - y);
+    c.fillStyle = 'rgba(240,244,252,.5)'; c.fillRect(0, y, W, 3);
+  }
+  function containerBlock(c, x, y, w, h, col) {
+    c.fillStyle = col; c.fillRect(x, y, w, h);
+    c.fillStyle = 'rgba(0,0,0,.25)'; for (let i = x + 8; i < x + w - 4; i += 12) c.fillRect(i, y + 4, 3, h - 8);
+    c.fillStyle = 'rgba(235,240,250,.55)'; c.fillRect(x, y, w, 4);          // 頂上的積雪
+  }
+  Object.assign(CX.BACKDROPS, {
+    /** 3-4　兩排貨櫃中間的空地 */
+    yardNight(c, t) {
+      sky(c, '#0b1020', '#1a2234');
+      lightTower(c, 480, true, t);
+      const cols = ['#3a2422', '#20304a', '#2c3a2e', '#4a3620'];
+      for (let j = 0; j < 3; j++) { containerBlock(c, -20, 160 + j * 92, 300, 88, cols[j % 4]); containerBlock(c, 680, 160 + j * 92, 300, 88, cols[(j + 2) % 4]); }
+      snowFloor(c, 430);
+    },
+    /** 3-5　鋼瓶區前：鐵網圍起來的一排灰色瓦斯鋼瓶 */
+    gasCage(c, t) {
+      sky(c, '#0a0e1c', '#18202f');
+      lightTower(c, 820, false, t);                 // 照明塔一半沒亮
+      lightTower(c, 120, true, t);
+      containerBlock(c, 0, 250, 260, 180, '#2a2f3c');
+      // 鐵網區
+      const x0 = 380, x1 = 860, y0 = 230, y1 = 430;
+      for (let i = 0; i < 9; i++) {                  // 鋼瓶
+        const x = x0 + 26 + i * 52;
+        c.fillStyle = '#6d7480'; CX.roundRect(c, x, y0 + 70, 34, 130, 12); c.fill();
+        c.fillStyle = '#8a919c'; c.fillRect(x + 4, y0 + 80, 6, 110);
+        c.fillStyle = '#3a3f48'; c.fillRect(x + 11, y0 + 56, 12, 16);
+      }
+      c.strokeStyle = 'rgba(170,178,190,.55)'; c.lineWidth = 1;
+      for (let x = x0; x <= x1; x += 14) { c.beginPath(); c.moveTo(x, y0); c.lineTo(x + 40, y1); c.stroke(); c.beginPath(); c.moveTo(x + 40, y0); c.lineTo(x, y1); c.stroke(); }
+      c.strokeStyle = '#4a505c'; c.lineWidth = 5; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      snowFloor(c, 430);
+    },
+  });
+
   CX.drawBackdrop = function (c, key, t = 0) {
     const f = CX.BACKDROPS[key];
     if (f) f(c, t); else { c.fillStyle = '#0a0a12'; c.fillRect(0, 0, W, H); }

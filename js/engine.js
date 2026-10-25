@@ -21,6 +21,8 @@ window.CX = window.CX || {};
     fast: params.has('fast'),                     // ?fast=1 劇情自動快轉
     ch: parseInt(params.get('ch') || '0', 10),       // ?ch=1 直接從第 1 章開始（跳到該章的存檔點）
     pick: parseInt(params.get('pick') || '0', 10),   // ?auto=1&pick=1 自動遊玩時選項一律選第 N 個（0 起算）
+    picks: (params.get('picks') || '').split(',').filter(x => x !== '').map(Number),   // ?picks=1,0,2 依序指定每一次選項（用完後改用 pick）
+    preset: params.get('vars') || '',                // ?vars=heardCount:true,trustDong:3 開場時先設定變數（測試用）
     fail: params.has('fail'),                     // ?auto=1&fail=1 節奏關「門後」第一次故意在休止拍按下（測試失敗→重聽）
   };
 
@@ -204,6 +206,7 @@ window.CX = window.CX || {};
         case 'metal': this.noise(.12, .35 * v, 900, 'bandpass'); this.tone(140, .35, 'triangle', .1 * v); this.tone(97, .5, 'sine', .14 * v); break;
         case 'rain': this.noise(1.6, .12 * v, 2400, 'highpass'); this.noise(1.6, .1 * v, 600); break;   // 一陣雨聲（空白格用）
         case 'radio': [0, .18, .36].forEach(w => this.tone(1200, .08, 'square', .015 * v, w)); this.noise(.6, .05 * v, 1800, 'bandpass'); break;
+        case 'hiss': this.noise(3.2, .05 * v, 5200, 'highpass'); this.tone(452, 3, 'sine', .012 * v); break;   // 瓦斯外洩：比降 B 還低一點的細音
         case 'trust': this.tone(660, .35, 'sine', .05 * v); this.tone(990, .4, 'sine', .03 * v, .06); break;
       }
     },
@@ -329,9 +332,17 @@ window.CX = window.CX || {};
     items: [],
     ch3Started: false,                   // 第 3 章真正開始後設為 true（之後圖鑑「重聽門後」就不再改 heardCount）
     doorOk: false, retryDoor: false, doorTries: 0,   // 節奏關「門後」：這一次有沒有聽出來／是否重聽／第幾次
+    ran3: false,                         // 第 3 章 3-2：true = 照著夢跑上貨櫃（3-3），false = 不跑（3-4）
+    dreamRetry: false,                   // 第 3 章：看過結局①沉海、回到存檔點之後為 true
   };
   CX.vars = {};
-  CX.resetVars = function () { CX.vars = JSON.parse(JSON.stringify(CX.VAR_DEFAULTS)); };
+  CX.resetVars = function () {
+    CX.vars = JSON.parse(JSON.stringify(CX.VAR_DEFAULTS));
+    if (CX.DEBUG.preset) CX.DEBUG.preset.split(',').forEach(kv => {     // 測試用 ?vars=
+      const [k, v] = kv.split(':'); if (!k) return;
+      CX.vars[k] = v === 'true' ? true : v === 'false' ? false : isNaN(Number(v)) ? v : Number(v);
+    });
+  };
   CX.resetVars();
   /** 套用一格／一個選項上的 set、add、item */
   CX.applyEffects = function (o) {
