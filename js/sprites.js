@@ -5,6 +5,7 @@
  *     李雨真：黑色及腰長髮、白皙、白色高領 + 深藍大衣（2009 年為制服＋紅領結）
  *     延東宇：黑色短髮、黑色高領 + 黑大衣（2009 年為灰色連帽外套）
  *     斗篷男：全黑連帽斗篷、看不清臉
+ *     沈昊（第 1 章起）：斗篷脫下版，臉與頸有傷疤（粗略向量，待正式立繪）
  *   (x, y) 為角色腳底中心點。
  * ========================================================= */
 (function (CX) {
@@ -165,6 +166,86 @@
       ctx.strokeStyle = '#07070b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(4, -52); ctx.lineTo(24, -54); ctx.stroke();
       ctx.fillStyle = '#222'; ctx.fillRect(22, -58, 10, 4);
+    }
+    ctx.restore();
+  };
+
+
+  /* ---------- 沈昊（阿昊，斗篷脫下版；粗略向量，之後可換正式立繪） ----------
+   *   傷疤：臉、頸、左胸、左臂（劇本設定），用淡色細線表示，不畫傷口。
+   *   左腳拖一點：limp 參數讓左腳擺幅變小。 */
+  CX.drawHao = function (ctx, x, y, o = {}) {
+    const f = o.facing || 1, young = o.young;
+    const bob = o.run && !o.air ? Math.abs(Math.sin(o.t * 14)) * 2 : 0;
+    ctx.save();
+    ctx.translate(x, y - bob); ctx.scale(f * (o.scale || 1.4), o.scale || 1.4);
+    if (o.alpha != null) ctx.globalAlpha = o.alpha;
+    rim(ctx);
+    const [a1, a2] = legAngles(o);
+    leg(ctx, -2, -23, 22, a2 * (young ? 1 : .45), '#15151b', 5.5);   // 左腳（拖步）
+    leg(ctx, 2, -23, 22, a1, '#15151b', 5.5);
+    ctx.fillStyle = young ? '#5a6478' : '#1a1a22';                   // 8 歲：灰藍外套；27 歲：深色長外套
+    ctx.beginPath(); ctx.moveTo(-9, -52); ctx.lineTo(9, -52); ctx.lineTo(11, -20); ctx.lineTo(-11, -20); ctx.fill();
+    ctx.strokeStyle = young ? '#5a6478' : '#1a1a22'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -49); ctx.lineTo(2, -34); ctx.stroke();
+    if (young) { ctx.fillStyle = '#2a2a30'; ctx.fillRect(-14, -50, 5, 26); }   // 琴袋
+    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(1, -63, 9.5, 0, 6.283); ctx.fill();
+    ctx.fillStyle = HAIR; ctx.beginPath();
+    ctx.moveTo(-10, -61); ctx.lineTo(-10, -70); ctx.lineTo(-4, -75); ctx.lineTo(5, -75); ctx.lineTo(10, -70);
+    ctx.lineTo(10, -64); ctx.lineTo(6, -68); ctx.lineTo(1, -66); ctx.lineTo(-4, -68); ctx.lineTo(-7, -58); ctx.fill();
+    if (!young) {
+      ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(205,150,150,.85)'; ctx.lineWidth = .9;
+      ctx.beginPath(); ctx.moveTo(-2, -66); ctx.lineTo(4, -58); ctx.moveTo(0, -61); ctx.lineTo(6, -63);
+      ctx.moveTo(-3, -55); ctx.lineTo(3, -51); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  /** 程式產生的頭像（100×100），放進 CX.images['pt_*']，對話框直接使用 */
+  function portrait(draw) {
+    const cv = document.createElement('canvas'); cv.width = 200; cv.height = 200;
+    const c = cv.getContext('2d'); c.scale(2, 2);
+    const g = c.createLinearGradient(0, 0, 0, 100); g.addColorStop(0, '#2b3142'); g.addColorStop(1, '#10121a');
+    c.fillStyle = g; c.fillRect(0, 0, 100, 100);
+    draw(c); return cv;
+  }
+  function face(c, o) {
+    c.fillStyle = o.coat; c.beginPath(); c.moveTo(14, 100); c.quadraticCurveTo(50, 64, 86, 100); c.fill();
+    c.fillStyle = SKIN; c.fillRect(43, 60, 14, 14);
+    c.beginPath(); c.ellipse(50, 46, 20, 24, 0, 0, 6.283); c.fill();
+    c.fillStyle = HAIR; c.beginPath();
+    c.moveTo(28, 50); c.quadraticCurveTo(24, 18, 50, 18); c.quadraticCurveTo(78, 18, 72, 50);
+    c.lineTo(66, 34); c.lineTo(56, 38); c.lineTo(46, 32); c.lineTo(36, 40); c.closePath(); c.fill();
+    c.fillStyle = '#1c1a20'; c.fillRect(39, 48, 7, 2); c.fillRect(55, 48, 7, 2);
+    if (o.scar) {
+      c.strokeStyle = 'rgba(200,140,140,.9)'; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(34, 40); c.lineTo(46, 62); c.moveTo(38, 52); c.lineTo(48, 50);
+      c.moveTo(42, 64); c.lineTo(52, 74); c.moveTo(30, 88); c.lineTo(42, 96); c.stroke();
+    }
+  }
+  CX.makePortraits = function () {
+    CX.images.pt_hao = portrait(c => face(c, { coat: '#1a1a22', scar: true }));
+    CX.images.pt_hao_s = portrait(c => { c.save(); c.translate(50, 60); c.scale(.85, .85); c.translate(-50, -50); face(c, { coat: '#5a6478' }); c.restore(); });
+    CX.images.pt_panda_s = portrait(c => {
+      c.fillStyle = '#c8783a'; c.beginPath(); c.moveTo(10, 100); c.quadraticCurveTo(50, 62, 90, 100); c.fill();
+      c.fillStyle = SKIN; c.beginPath(); c.ellipse(50, 52, 24, 24, 0, 0, 6.283); c.fill();
+      c.fillStyle = HAIR; c.beginPath(); c.ellipse(50, 34, 24, 12, 0, Math.PI, 0); c.fill();
+      c.fillStyle = '#1c1a20'; c.beginPath(); c.arc(41, 52, 2.5, 0, 6.283); c.arc(59, 52, 2.5, 0, 6.283); c.fill();
+      c.strokeStyle = '#a05050'; c.lineWidth = 1.5; c.beginPath(); c.arc(50, 60, 6, .2, Math.PI - .2); c.stroke();
+    });
+  };
+
+  /** 信任度圖示：東宇＝黑大衣的扣子；阿昊＝一個琴鍵（不顯示數字） */
+  CX.drawTrustIcon = function (ctx, kind, x, y, a = 1) {
+    ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y);
+    ctx.shadowColor = 'rgba(200,215,255,.8)'; ctx.shadowBlur = 12;
+    if (kind === 'trustHao') {
+      ctx.fillStyle = '#f4f4f0'; CX.roundRect(ctx, -11, -22, 22, 44, 3); ctx.fill();
+      ctx.shadowBlur = 0; ctx.fillStyle = '#15151a'; ctx.fillRect(4, -22, 10, 26);
+    } else {
+      ctx.fillStyle = '#1a1a20'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.283); ctx.fill();
+      ctx.shadowBlur = 0; ctx.strokeStyle = '#4a4a56'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.283); ctx.stroke();
+      ctx.fillStyle = '#5a5a66'; [[-4, -4], [4, -4], [-4, 4], [4, 4]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(dx, dy, 2, 0, 6.283); ctx.fill(); });
     }
     ctx.restore();
   };

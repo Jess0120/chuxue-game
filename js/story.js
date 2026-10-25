@@ -16,6 +16,12 @@
     hood:   { name: '斗篷男', portrait: 'hood',   color: '#d0d0d8' },
     yu_s:   { name: '李雨真', portrait: 'yu_s',   color: '#ffd0dc' },
     dong_s: { name: '延東宇', portrait: 'dong_s', color: '#ffe2b8' },
+    // ---- 第 1 章起（遊戲原創劇情）----
+    mom:     { name: '媽媽', portrait: null,      color: '#e8d4c4' },   // 只有聲音，沒有頭像
+    hao:     { name: '沈昊', portrait: 'hao',     color: '#b9c9dc' },   // 頭像為程式繪製（sprites.js）
+    hao_v:   { name: '沈昊', portrait: null,      color: '#b9c9dc' },   // 電話裡的聲音
+    hao_s:   { name: '沈昊', portrait: 'hao_s',   color: '#cddbf0' },   // 8 歲
+    panda_s: { name: '胖達', portrait: 'panda_s', color: '#ffd2a0' },   // 8 歲
   };
 
   /** 各段過場劇情 */
@@ -130,43 +136,56 @@
     ],
   };
 
-  /** 隱藏結局（草稿，可自由改寫；caption 會以大字顯示在畫面中央） */
+  /** 延伸結局・原點（非原作）
+   *   原型是最初的「隱藏結局・原點」，第 4 章劇本（小雅）加了阿昊與胖達在初遇現場的幾格。
+   *   定位：三個正式結局之後的最後一場夢，不是正式結局，也不是原作情節。
+   *   暫時接在第 1 章之後（第 2～4 章完成後，改接在第 4 章共通尾聲後面）。 */
   CX.CUTSCENES.hidden = [
-    { img: 'p59', text: '初雪落下的那一刻，散落在夢裡的記憶，一片一片回到了掌心。', caption: '隱藏結局・原點' },
-    { img: 'p04', text: '我是為了什麼逃離，又為了什麼漂泊……現在，我終於想起來了。' },
-    { img: 'p13', text: '那些腳步聲、那個雨夜、那扇怎麼喊也喊不開的門。' },
-    { img: 'p34', text: '還有那個總是跟在我身後的小孩，那個為了我，能夠不計代價的背影。' },
-    { img: 'p33', text: '記得嗎，至少在我面前，妳可以不用擔心受傷……', who: 'dong' },
-    { img: 'p56', text: '……同學？妳怎麼了，怎麼突然哭了？', who: 'dong_s' },
-    { img: 'p57', text: '沒事，只是……今年的初雪，好美。', who: 'yu_s' },
-    { img: 'p57', text: '夢境的出現，也許不只是悲劇的開始。' },
-    { img: 'p58', text: '而是讓我，在一切發生之前，回到原點。' },
-    { img: 'p58', text: '延東宇，這一次，換我保護你。', who: 'yu_s' },
-    { img: 'p59', text: '初雪落下的地方，是夢的原點。這一次，故事會不一樣。' },
+    { img: 'p59', text: '初雪落下的那一刻，散落在夢裡的記憶，一片一片回到了掌心。', caption: '延伸結局・原點', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p04', text: '我是為了什麼逃離，又為了什麼漂泊……現在，我終於想起來了。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p13', text: '那些腳步聲、那個雨夜、那扇怎麼喊也喊不開的門，還有門後，三十下，停兩下。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p56', text: '……同學？妳怎麼了，怎麼突然哭了？', who: 'dong_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p57', text: '沒事，只是……今年的初雪，好美。', who: 'yu_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p59', text: '放學，校門口。那個背著琴袋的男孩在雪裡等。這一次，我跑過去，把他拉進來，四個人站成一排。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p59', text: '這是阿昊，我們一起學琴。他翻譜很慢，可是他數拍子數得很準。', who: 'yu_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p59', text: '你的手好紅喔。', who: 'panda_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p59', text: '……謝謝。', who: 'hao_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p57', text: '夢境的出現，也許不只是悲劇的開始。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p58', text: '而是讓我，在一切發生之前，回到原點。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p58', text: '延東宇，這一次，換我保護你。', who: 'yu_s', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p58', text: '還有你們。', footnote: '本結局為遊戲延伸，非原作情節。' },
+    { img: 'p59', text: '初雪落下的地方，是夢的原點。這一次，沒有人需要站在門外。', footnote: '本結局為遊戲延伸，非原作情節。' },
   ];
 
   CX.HIDDEN_TEXT = {
-    endHint: '收集所有記憶碎片，或許能看見另一個結局。',
-    endDone: '你拾回了所有記憶，也看見了另一個結局。',
-    galleryLocked: '隱藏結局：未解鎖（拾回全部記憶碎片）',
-    galleryUnlocked: '隱藏結局：已解鎖',
+    endHint: '收集所有記憶碎片，或許能看見延伸結局。',
+    endDone: '你拾回了所有記憶，也看見了延伸結局。',
+    galleryLocked: '延伸結局・原點（非原作）：未解鎖（拾回全部記憶碎片）',
+    galleryUnlocked: '延伸結局・原點（非原作）：已解鎖',
+    galleryReplay: '重溫延伸結局',
   };
 
-  /** 每章開頭的標題卡與操作說明 */
+  /** 每章開頭的標題卡與操作說明
+   *   第 0 章（序章）裡的四個關卡改名為「序章・一～四」，避免和新的第 1～4 章撞名。 */
   CX.STAGE_INFO = {
-    1: { no: '第一章', name: '午夜港口', goal: '往貨櫃最上層奔跑，別被身後的黑影追上！',
+    1: { no: '序章・一', name: '午夜港口', goal: '往貨櫃最上層奔跑，別被身後的黑影追上！',
          keys: '← → 移動　　↑ / 空白鍵 跳躍', touch: '◀ ▶ 移動　　跳 跳躍' },
-    2: { no: '第二章', name: '聆聽', goal: '閉上眼睛。當腳步聲的波紋與圓環重疊時按下！',
+    2: { no: '序章・二', name: '聆聽', goal: '閉上眼睛。當腳步聲的波紋與圓環重疊時按下！',
          keys: '空白鍵 / Enter 按下', touch: '點擊畫面',
          hint: '❄ 連續 3、6、10 拍不失誤，就能拾回記憶碎片' },
-    3: { no: '第三章', name: '看準時機', goal: '趁斗篷男注意東宇時移動；紅光掃來時停下或躲進陰影，最後逃離火海！',
+    3: { no: '序章・三', name: '看準時機', goal: '趁斗篷男注意東宇時移動；紅光掃來時停下或躲進陰影，最後逃離火海！',
          keys: '← → 移動　　↑ / 空白鍵 跳躍', touch: '◀ ▶ 移動　　跳 跳躍' },
-    4: { no: '第四章', name: '2009・雨夜', goal: '追上東宇！跳過水窪與障礙物，趕往學校。',
+    4: { no: '序章・四', name: '2009・雨夜', goal: '追上東宇！跳過水窪與障礙物，趕往學校。',
          keys: '↑ / 空白鍵 跳躍（長按跳更高）', touch: '點擊畫面或按「跳」跳躍' },
   };
 
-  /** 遊戲流程：依序執行 */
+  /** 遊戲流程：依序執行
+   *   type：cut（過場）／stage（關卡）／explore（點擊調查）／checkpoint（存檔點）／
+   *         jump（條件跳轉到某個 label）／end（結算）
+   *   cond：條件不成立就跳過這一步（見 engine.js 的 CX.evalCond）
+   *   第 1 章起的過場與調查資料在 js/story-ch1.js（遊戲原創，非小說原作）。 */
   CX.FLOW = [
+    // ── 第 0 章・序章（原作改編，內容不動）──
     { type: 'cut', id: 'prologue', bgm: 'night' },
     { type: 'stage', id: 1 },
     { type: 'cut', id: 'after1', bgm: 'night' },
@@ -177,14 +196,27 @@
     { type: 'stage', id: 4 },
     { type: 'cut', id: 'after4', bgm: 'rain' },
     { type: 'cut', id: 'ending', bgm: 'snow', snow: true },
-    { type: 'cut', id: 'hidden', bgm: 'snow', snow: true, cond: 'allMemories' },   // 隱藏結局：拾回全部碎片才會播放
+    // ── 第 1 章　碎片（遊戲原創）──
+    { type: 'checkpoint', id: 'ch1', name: '第一章　碎片' },
+    { type: 'cut', id: 'ch1_title', bgm: 'none', weather: 'none', fragTotal: 7 },
+    { type: 'cut', id: 'ch1_wake', bgm: 'night', weather: 'none' },
+    { type: 'explore', id: 'ch1_room' },
+    { type: 'cut', id: 'ch1_call', weather: 'none' },
+    { type: 'cut', id: 'ch1_port', bgm: 'tense', weather: 'none' },
+    { type: 'cut', id: 'ch1_night', bgm: 'rain', rain: true },
+    // ── 第 2～4 章：製作中 ──
+    { type: 'checkpoint', id: 'ch2', name: '第二章　頂樓（製作中）' },
+    { type: 'cut', id: 'wip', bgm: 'snow', weather: 'none' },
+    // 延伸結局・原點：拾回全部碎片才播放（暫掛在這裡；第 4 章完成後移到 ch4 尾聲之後）
+    { type: 'cut', id: 'hidden', bgm: 'snow', snow: true, cond: 'allMemories' },
     { type: 'end' },
   ];
 
   /** 需要預先載入的圖片清單 */
   CX.assetList = function () {
     const set = new Set(['p11', 'p59']);
-    Object.values(CX.CUTSCENES).forEach(list => list.forEach(s => set.add(s.img)));
+    Object.values(CX.CUTSCENES).forEach(list => list.forEach(s => { if (s.img) set.add(s.img); }));
+    Object.values(CX.EXPLORE || {}).forEach(d => d.objects.forEach(o => (o.lines || []).forEach(s => { if (s.img) set.add(s.img); })));
     const list = [...set].map(k => [k, `assets/panels/${k}.jpg`]);
     ['yu', 'dong', 'hood', 'yu_s', 'dong_s'].forEach(k => list.push(['pt_' + k, `assets/portraits/${k}.jpg`]));
     return list;

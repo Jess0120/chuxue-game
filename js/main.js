@@ -63,20 +63,24 @@
     constructor() {
       this.t = 0; this.weather = new CX.Weather('snow', 1.2); CX.setTouchLayout('none');
       this.sel = 0;
-      this.btns = [{ x: W / 2 - 120, y: 362, w: 240, h: 44, act: 'start' }, { x: W / 2 - 120, y: 418, w: 240, h: 44, act: 'gallery' }];
+      this.cp = CX.checkpoint.load();
+      const acts = this.cp ? ['continue', 'start', 'gallery'] : ['start', 'gallery'];
+      const y0 = this.cp ? 326 : 362;
+      this.btns = acts.map((act, k) => ({ x: W / 2 - 130, y: y0 + k * 52, w: 260, h: 44, act }));
     }
-    choose(act) { audio.sfx('page'); if (act === 'gallery') game.openGallery(); else game.start(); }
+    choose(act) { audio.sfx('page'); if (act === 'gallery') game.openGallery(); else if (act === 'continue') game.continueGame(); else game.start(); }
     update(dt) {
       this.t += dt; this.weather.update(dt, 8);
       if (CX.DEBUG.auto && this.t > 1) return game.start();
       if (this.t <= .5) return;
-      if (input.keyHit(...PREV_KEYS)) this.sel = (this.sel + 1) % 2;
-      else if (input.keyHit(...NEXT_KEYS)) this.sel = (this.sel + 1) % 2;
+      const nb = this.btns.length;
+      if (input.keyHit(...PREV_KEYS)) this.sel = (this.sel + nb - 1) % nb;
+      else if (input.keyHit(...NEXT_KEYS)) this.sel = (this.sel + 1) % nb;
       if (input.keyHit('KeyG')) return this.choose('gallery');
       if (input.keyHit(...OK_KEYS) || input.wasPressed('action')) return this.choose(this.btns[this.sel].act);
       if (input.tapped) {
         const b = this.btns.find(b => input.tapIn(b));
-        this.choose(b ? b.act : 'start');        // 點按鈕以外的地方＝開始遊戲（維持原本「點擊畫面開始」）
+        this.choose(b ? b.act : this.btns[0].act);   // 點按鈕以外的地方＝第一個按鈕（維持原本「點擊畫面開始」）
       }
     }
     draw(c) {
@@ -89,8 +93,10 @@
       CX.text(c, '初雪', W / 2, 190, 110, '#f2f5ff', { alpha: a, bold: true, shadow: '#8fa8ff', blur: 30 });
       CX.text(c, '夢落下的原點', W / 2, 280, 30, '#d6def5', { alpha: a });
       const m = CX.memory;
-      drawButton(c, this.btns[0], '開始遊戲', { selected: this.sel === 0, alpha: a });
-      drawButton(c, this.btns[1], `回憶圖鑑　${m.count()} / ${m.total()}${m.complete() ? '　★' : ''}`, { selected: this.sel === 1, alpha: a, size: 18 });
+      this.btns.forEach((b, k) => {
+        const label = b.act === 'start' ? (this.cp ? '從頭開始' : '開始遊戲') : b.act === 'continue' ? `繼續：${this.cp.name || '存檔點'}` : `回憶圖鑑　${m.count()} / ${m.total()}${m.complete() ? '　★' : ''}`;
+        drawButton(c, b, label, { selected: this.sel === k, alpha: a, size: b.act === 'start' ? 19 : 18 });
+      });
       const hint = CX.touchWanted ? '— 點擊按鈕選擇 —' : '↑ ↓ 選擇　Enter / 空白鍵 確認　G 回憶圖鑑';
       CX.text(c, hint, W / 2, 485, 15, '#e8ecff', { alpha: a * (.55 + .45 * Math.sin(t * 3)) });
       CX.text(c, '原著〈初雪〉改編・網頁小遊戲　　M 靜音　F 全螢幕', W / 2, 515, 13, 'rgba(200,208,230,.6)');
@@ -102,10 +108,12 @@
    * ========================================================= */
   class GalleryScene {
     constructor(onBack) {
-      this.t = 0; this.onBack = onBack; this.ch = 1; this.weather = new CX.Weather('snow', .7);
+      this.t = 0; this.onBack = onBack; this.weather = new CX.Weather('snow', .7);
       CX.setTouchLayout('none');
-      this.chapters = Object.keys(CX.MEMORIES).map(Number);
-      this.tabs = this.chapters.map((ch, i) => ({ x: 60 + i * 212, y: 92, w: 204, h: 38, ch }));
+      this.chapters = Object.keys(CX.MEMORIES);          // '1'～'4'＝序章各段，'c1'＝第一章…
+      this.ch = this.chapters[0];
+      const n = this.chapters.length, gap = 8, tw = (W - 120 - gap * (n - 1)) / n;
+      this.tabs = this.chapters.map((ch, i) => ({ x: 60 + i * (tw + gap), y: 92, w: tw, h: 38, ch }));
       this.bBack = { x: W / 2 - 70, y: 486, w: 140, h: 36 };
       this.bPrev = { x: 60, y: 486, w: 120, h: 36 };
       this.bNext = { x: W - 180, y: 486, w: 120, h: 36 };
@@ -119,7 +127,7 @@
       const done = CX.memory.complete();
       if (input.keyHit('ArrowLeft', 'KeyA', 'ArrowUp', 'KeyW')) this.step(-1);
       if (input.keyHit('ArrowRight', 'KeyD', 'ArrowDown', 'KeyS')) this.step(1);
-      ['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((k, i) => { if (input.keyHit(k) && this.chapters[i]) this.setCh(this.chapters[i]); });
+      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].forEach((k, i) => { if (input.keyHit(k) && this.chapters[i]) this.setCh(this.chapters[i]); });
       if (input.keyHit('Escape', 'Backspace', 'Enter', 'NumpadEnter', 'KeyG')) return this.onBack();
       if (done && input.keyHit('KeyH')) return game.playHidden();
       if (input.tapped) {
@@ -142,7 +150,7 @@
       // 章節分頁
       for (const r of this.tabs) {
         const list = CX.MEMORIES[r.ch], got = list.filter((_, i) => m.has(`${r.ch}-${i + 1}`)).length;
-        drawButton(c, r, `${CX.STAGE_INFO[r.ch].no}　${got}/${list.length}`, { selected: r.ch === this.ch, size: 16 });
+        drawButton(c, r, `${CX.STAGE_INFO[r.ch].no}　${got}/${list.length}`, { selected: r.ch === this.ch, size: this.tabs.length > 4 ? 14 : 16 });
       }
       CX.text(c, CX.STAGE_INFO[this.ch].name, W / 2, 147, 15, '#aebce0');
       // 條目
@@ -172,69 +180,159 @@
       drawButton(c, this.bPrev, '◀ 上一章', { size: 15 });
       drawButton(c, this.bNext, '下一章 ▶', { size: 15 });
       drawButton(c, this.bBack, '返回', { size: 16 });
-      if (done) drawButton(c, this.bHidden, '重溫隱藏結局' + (CX.touchWanted ? '' : '（H）'), { size: 15, color: '#ffe0a0' });
+      if (done) drawButton(c, this.bHidden, (CX.HIDDEN_TEXT.galleryReplay || '重溫隱藏結局') + (CX.touchWanted ? '' : '（H）'), { size: 15, color: '#ffe0a0' });
       if (!CX.touchWanted) CX.text(c, '← → 切換章節　Esc 返回', W / 2, 532, 11, 'rgba(200,210,240,.4)');
     }
   }
 
   /* =========================================================
    * 過場劇情：插圖＋打字機效果對話框
+   *   第 1 章起支援：choice 選項、cond 條件格、goto 跳段、set/add 變數、
+   *   frag 碎片、bg 程式背景、note 紙條、card 標題卡（格式見 story-ch1.js 開頭）
    * ========================================================= */
   class CutScene {
     constructor(id, opt = {}) {
       this.opt = opt; this.id = id;
-      this.list = CX.CUTSCENES[id]; this.i = 0; this.t = 0; this.chars = 0; this.prevImg = null; this.fadeT = 1;
-      this.weather = new CX.Weather(opt.snow ? 'snow' : id === 'after3' || id === 'after4' ? 'rain' : 'snow', opt.snow ? 1.4 : .5);
+      this.list = opt.list || CX.CUTSCENES[id]; this.i = 0; this.t = 0; this.chars = 0; this.prev = null; this.fadeT = 1;
+      const wm = opt.weather || (opt.snow ? 'snow' : (opt.rain || id === 'after3' || id === 'after4') ? 'rain' : 'snow');
+      this.weather = new CX.Weather(wm === 'none' ? 'snow' : wm, wm === 'none' ? 0 : opt.snow ? 1.4 : wm === 'rain' ? .8 : .5);
       this.isRain = this.weather.mode === 'rain';
+      this.sel = 0; this.pendingFinish = false;
       CX.setTouchLayout('none');
       this.enterSlide();
     }
-    get cur() { return this.list[this.i]; }
+    get cur() { return this.list && this.list[this.i]; }
+    get len() { const s = this.cur; return s && s.text ? s.text.length : 0; }
+    /** 目前這一格可選的選項（cond 不成立的不顯示） */
+    get choices() { const s = this.cur; return s && s.choice ? s.choice.filter(o => CX.evalCond(o.cond)) : null; }
+    switchTo(id) {
+      if (!CX.CUTSCENES[id]) { console.warn('[cut] 找不到過場', id); this.pendingFinish = true; return false; }
+      console.log('[cut] goto', id); this.list = CX.CUTSCENES[id]; this.id = id; this.i = 0; return true;
+    }
+    /** 進入目前這一格：跳過條件不成立的格、處理純跳轉格，再觸發音效／變數／碎片 */
     enterSlide() {
-      this.t = 0; this.chars = 0;
+      for (let guard = 0; guard < 500; guard++) {
+        const s = this.cur;
+        if (!s) { this.pendingFinish = true; return; }
+        if (!CX.evalCond(s.cond)) { this.i++; continue; }
+        if (s.goto && s.text == null && !s.choice) { CX.applyEffects(s); if (!this.switchTo(s.goto)) return; continue; }
+        break;
+      }
+      this.t = 0; this.chars = 0; this.sel = 0;
       const s = this.cur;
       if (s.sfx) audio.sfx(s.sfx, .8);
       this.shakeAmt = s.shake || 0;
+      if (!s.choice) CX.applyEffects(s);
+      if (s.frag) CX.awardMemory(s.frag);
+      if (s.weather) { this.weather.set(s.weather === 'none' ? 'snow' : s.weather, s.weather === 'none' ? 0 : .8); this.isRain = s.weather === 'rain'; }
       // 2009 之後的回憶篇改成下雨
       if (s.img === 'p44' && !this.isRain) { this.weather.set('rain', .8); this.isRain = true; }
     }
-    advance() {
-      if (this.chars < this.cur.text.length) { this.chars = this.cur.text.length; return; }
-      audio.sfx('page');
-      if (this.i >= this.list.length - 1) { this.finish(); return; }
-      this.prevImg = this.cur.img; this.fadeT = 0; this.i++; this.enterSlide();
+    /** 往下一格（或 goto 到另一段） */
+    step(gotoId) {
+      const s = this.cur;
+      this.prev = s; this.fadeT = 0;
+      const g = gotoId || (s && s.goto);
+      if (g) { if (!this.switchTo(g)) return; }
+      else this.i++;
+      this.enterSlide();
     }
-    finish() { if (this.opt.onDone) this.opt.onDone(); else game.next(); }
+    advance() {
+      if (this.chars < this.len) { this.chars = this.len; return; }
+      if (this.cur.choice) return;                 // 等玩家選
+      audio.sfx('page');
+      this.step();
+    }
+    choose(k) {
+      const o = this.choices[k]; if (!o) return;
+      audio.sfx('page'); console.log('[choice]', o.text);
+      CX.applyEffects(o);
+      this.step(o.goto || null);
+    }
+    /** Esc：快轉到下一個選項（途中的變數與碎片照常生效）；沒有選項就結束整段 */
+    skipAhead() {
+      for (let guard = 0; guard < 500; guard++) {
+        const s = this.cur;
+        if (s && !s.choice) {
+          const g = s.goto;
+          if (g) { if (!this.switchTo(g)) break; }
+          else this.i++;
+        }
+        const n = this.cur;
+        if (!n) break;
+        if (!CX.evalCond(n.cond)) { this.i++; continue; }
+        if (n.choice) { this.prev = null; this.enterSlide(); this.chars = this.len; return; }
+        if (n.goto && n.text == null) { CX.applyEffects(n); continue; }
+        CX.applyEffects(n); if (n.frag) CX.awardMemory(n.frag);
+      }
+      this.finish();
+    }
+    choiceRects(n) {
+      const w = 600, h = 46, gap = 12, top = 372 - n * (h + gap);
+      return Array.from({ length: n }, (_, k) => ({ x: W / 2 - w / 2, y: top + k * (h + gap), w, h }));
+    }
+    finish() { if (this.done) return; this.done = true; if (this.opt.onDone) this.opt.onDone(); else game.next(); }
     update(dt) {
+      if (this.pendingFinish) { this.pendingFinish = false; return this.finish(); }
+      const s = this.cur; if (!s) return;
       this.t += dt; this.fadeT = Math.min(1, this.fadeT + dt * 2.2);
-      this.chars = Math.min(this.cur.text.length, this.chars + dt * 32);
+      this.chars = Math.min(this.len, this.chars + dt * 32);
       this.shakeAmt *= Math.pow(.03, dt);
       this.weather.update(dt, this.isRain ? 0 : 6);
-      if (input.wasPressed('back')) { this.finish(); return; }        // Esc 跳過整段
+      const ch = this.chars >= this.len && this.choices;
+      if (ch && ch.length) {
+        if (input.keyHit(...PREV_KEYS)) this.sel = (this.sel + ch.length - 1) % ch.length;
+        if (input.keyHit(...NEXT_KEYS)) this.sel = (this.sel + 1) % ch.length;
+        if (this.t > .4) {
+          if (input.tapped) { const k = this.choiceRects(ch.length).findIndex(r => input.tapIn(r)); if (k >= 0) return this.choose(k); }
+          else if (input.keyHit(...OK_KEYS)) return this.choose(this.sel);
+          for (let k = 0; k < ch.length && k < 4; k++) if (input.keyHit('Digit' + (k + 1), 'Numpad' + (k + 1))) return this.choose(k);
+        }
+        if (CX.DEBUG.auto && this.t > .8) return this.choose(Math.min(CX.DEBUG.pick, ch.length - 1));
+        return;
+      }
+      if (input.wasPressed('back')) { this.skipAhead(); return; }        // Esc 跳過（遇到選項會停下）
       if (this.t > .25 && input.confirm()) this.advance();
+      // 沒有文字的格（標題卡、簡訊畫面）：hold 秒後自動翻頁
+      if (!this.len && this.t > (s.hold || 2.4)) this.advance();
       // 自動遊玩／快轉：文字顯示完就自動翻頁
-      if ((CX.DEBUG.auto || CX.DEBUG.fast) && this.chars >= this.cur.text.length && this.t > .5) this.advance();
+      if ((CX.DEBUG.auto || CX.DEBUG.fast) && this.chars >= this.len && this.t > .5) this.advance();
+    }
+    drawBg(c, s, zoom, pan) {
+      if (s.img) CX.drawCover(c, CX.images[s.img], 0, 0, W, H, zoom, pan);
+      else if (s.bg) CX.drawBackdrop(c, s.bg, this.t);
     }
     draw(c) {
-      const s = this.cur, k = clamp(this.t / 8, 0, 1);
+      const s = this.cur;
+      if (!s) { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); return; }
+      const k = clamp(this.t / 8, 0, 1);
       c.save();
       if (this.shakeAmt > .3) c.translate(CX.rand(-1, 1) * this.shakeAmt, CX.rand(-1, 1) * this.shakeAmt);
       c.fillStyle = '#000'; c.fillRect(-20, -20, W + 40, H + 40);
-      if (this.prevImg && this.fadeT < 1) CX.drawCover(c, CX.images[this.prevImg], 0, 0, W, H, 1.1);
+      if (this.prev && this.fadeT < 1) this.drawBg(c, this.prev, 1.1, 0);
       c.globalAlpha = this.fadeT;
-      CX.drawCover(c, CX.images[s.img], 0, 0, W, H, 1.02 + k * .08, (k - .5) * -16);   // 緩慢推鏡
+      this.drawBg(c, s, 1.02 + k * .08, (k - .5) * -16);   // 緩慢推鏡
       c.globalAlpha = 1;
       c.restore();
       this.weather.draw(c, .8);
+      if (s.note) { c.save(); c.globalAlpha = clamp(this.t * 3, 0, 1); CX.drawNote(c, s.note, s.noteStyle); c.restore(); }
       const cap = s.caption || (s.year ? '2009年' : '');     // 畫面中央的大字標題
       if (cap) {
         c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, 0, W, H);
         CX.text(c, cap, W / 2, 150, s.caption ? 52 : 64, '#e6e6ea', { bold: true, alpha: clamp(this.t, 0, 1), shadow: '#000' });
       }
-      this.drawBox(c, s);
+      if (s.card) CX.text(c, s.card, W / 2, s.text ? 200 : H / 2, 46, '#eef0f8', { bold: true, alpha: clamp(this.t / 1.2, 0, 1), shadow: '#8fa8ff', blur: 20 });
+      if (s.footnote) CX.text(c, s.footnote, 24, 22, 13, 'rgba(235,238,248,.75)', { align: 'left', stroke: 'rgba(0,0,0,.5)', strokeW: 3 });
+      if (this.len) this.drawBox(c, s);
+      const ch = this.chars >= this.len && this.choices;
+      if (ch && ch.length) {
+        c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, W, H);
+        this.choiceRects(ch.length).forEach((r, i) => drawButton(c, r, ch[i].text, { selected: i === this.sel, size: 18 }));
+        if (!CX.touchWanted) CX.text(c, '↑ ↓ 選擇　Enter 決定', W / 2, 396, 13, 'rgba(220,226,245,.6)');
+      }
       CX.text(c, CX.touchWanted ? '' : 'Esc 跳過劇情', W - 70, 530, 12, 'rgba(255,255,255,.45)');
     }
-    /** 對話框：有說話者時顯示頭像與名牌 */
+    /** 對話框：有說話者時顯示頭像與名牌（沒有頭像的角色只顯示名牌） */
     drawBox(c, s) {
       const who = s.who && CX.CHARACTERS[s.who];
       const bx = 40, by = 390, bw = W - 80, bh = 128;
@@ -244,24 +342,74 @@
       c.strokeStyle = 'rgba(190,205,255,.35)'; c.lineWidth = 1.5; c.stroke();
       let tx = bx + 28;
       if (who) {
-        const img = CX.images['pt_' + who.portrait];
-        c.save(); CX.roundRect(c, bx + 16, by + 14, 100, 100, 12); c.clip();
-        if (img && img.naturalWidth) c.drawImage(img, bx + 16, by + 14, 100, 100);
-        c.restore();
-        c.strokeStyle = who.color; c.lineWidth = 2; CX.roundRect(c, bx + 16, by + 14, 100, 100, 12); c.stroke();
-        c.fillStyle = 'rgba(8,10,22,.92)'; CX.roundRect(c, bx + 130, by - 18, 110, 32, 8); c.fill();
+        const img = who.portrait && CX.images['pt_' + who.portrait];
+        const tagX = img ? bx + 130 : bx + 16;
+        if (img) {
+          c.save(); CX.roundRect(c, bx + 16, by + 14, 100, 100, 12); c.clip();
+          if (img.naturalWidth || img.width) c.drawImage(img, bx + 16, by + 14, 100, 100);
+          c.restore();
+          c.strokeStyle = who.color; c.lineWidth = 2; CX.roundRect(c, bx + 16, by + 14, 100, 100, 12); c.stroke();
+          tx = bx + 136;
+        }
+        c.fillStyle = 'rgba(8,10,22,.92)'; CX.roundRect(c, tagX, by - 18, 110, 32, 8); c.fill();
         c.strokeStyle = who.color; c.lineWidth = 1.5; c.stroke();
-        CX.text(c, who.name, bx + 185, by - 2, 18, who.color, { bold: true });
-        tx = bx + 136;
+        CX.text(c, who.name, tagX + 55, by - 2, 18, who.color, { bold: true });
       }
       c.save();
-      c.font = CX.font(who ? 22 : 21); c.fillStyle = who ? '#ffffff' : '#e4e8f6'; c.textBaseline = 'top';
+      c.font = CX.font(who ? 22 : 21); c.fillStyle = s.em ? '#ffe6b0' : who ? '#ffffff' : '#e4e8f6'; c.textBaseline = 'top';
       const shown = s.text.slice(0, Math.floor(this.chars));
       const lines = CX.wrapText(c, (who ? '「' : '') + shown + (who && this.chars >= s.text.length ? '」' : ''), bx + bw - tx - 30);
       lines.slice(0, 3).forEach((ln, i) => c.fillText(ln, tx, by + 22 + i * 32));
       c.restore();
-      if (this.chars >= s.text.length) CX.text(c, '▼', bx + bw - 26, by + bh - 20 + Math.sin(this.t * 6) * 3, 14, '#c8d4ff');
+      if (this.chars >= s.text.length && !s.choice) CX.text(c, '▼', bx + bw - 26, by + bh - 20 + Math.sin(this.t * 6) * 3, 14, '#c8d4ff');
       CX.text(c, `${this.i + 1} / ${this.list.length}`, bx + bw - 60, by + 16, 11, 'rgba(200,210,240,.4)');
+    }
+  }
+
+  /* =========================================================
+   * 點擊調查（第 1 章起）：CX.EXPLORE[id] = { bg, title, hint, objects:[…] }
+   *   objects：{ id, kind, label, x,y,w,h, lines:[過場格…], after:[先調查完的 id], exit }
+   *   點物件（或 ← → 選、Enter 決定）就播放它的 lines；全部調查完才會出現 exit 物件。
+   * ========================================================= */
+  class ExploreScene {
+    constructor(id, step = {}) {
+      this.id = id; this.def = CX.EXPLORE[id]; this.step = step;
+      this.t = 0; this.done = new Set(); this.sel = 0;
+      CX.setTouchLayout('none');
+    }
+    get visible() { return this.def.objects.filter(o => !o.after || o.after.every(a => this.done.has(a))); }
+    get required() { return this.def.objects.filter(o => !o.exit); }
+    investigate(o) {
+      if (!o) return;
+      audio.sfx('page'); console.log('[explore]', this.id, o.id);
+      if (o.exit) return game.next();
+      const back = () => {
+        this.done.add(o.id); this.t = 0; CX.setTouchLayout('none'); game.scene = this;
+        const v = this.visible; this.sel = Math.max(0, v.findIndex(x => !this.done.has(x.id)));
+      };
+      game.scene = new CutScene(this.id + ':' + o.id, { list: o.lines, weather: 'none', onDone: back });
+    }
+    update(dt) {
+      this.t += dt;
+      const v = this.visible;
+      if (this.sel >= v.length) this.sel = 0;
+      if (this.t < .3) return;
+      if (CX.DEBUG.auto) { if (this.t > .6) this.investigate(v.find(x => !this.done.has(x.id))); return; }
+      if (input.keyHit(...PREV_KEYS)) this.sel = (this.sel + v.length - 1) % v.length;
+      if (input.keyHit(...NEXT_KEYS)) this.sel = (this.sel + 1) % v.length;
+      if (input.tapped) { const o = v.find(x => input.tapIn({ x: x.x - 8, y: x.y - 8, w: x.w + 16, h: x.h + 16 })); if (o) this.investigate(o); }
+      else if (input.keyHit(...OK_KEYS)) this.investigate(v[this.sel]);
+    }
+    draw(c) {
+      CX.drawBackdrop(c, this.def.bg, this.t);
+      const v = this.visible;
+      v.forEach((o, k) => CX.drawProp(c, o, { t: this.t, sel: k === this.sel && !CX.touchWanted, done: this.done.has(o.id), labels: CX.touchWanted, opened: this.done.has('box') }));
+      c.fillStyle = 'rgba(4,6,14,.72)'; CX.roundRect(c, 24, 18, 470, 62, 10); c.fill();
+      CX.text(c, this.def.title, 44, 38, 20, '#f2f5ff', { align: 'left', bold: true });
+      const req = this.required, n = req.filter(o => this.done.has(o.id)).length;
+      CX.text(c, `調查　${n} / ${req.length}`, 470, 38, 15, '#cfd8f5', { align: 'right' });
+      CX.text(c, this.def.hint, 44, 63, 13, 'rgba(210,218,240,.75)', { align: 'left' });
+      if (!CX.touchWanted) CX.text(c, '← → 選擇物件　Enter / 空白鍵 調查　（也可以直接點擊）', W / 2, 522, 13, 'rgba(220,226,245,.6)');
     }
   }
 
@@ -310,6 +458,51 @@
   }
 
   /* =========================================================
+   * 畫面最上層的浮動提示（過場／調查用；關卡有自己的 toast）
+   *   ・記憶碎片：拾回時顯示回憶文字
+   *   ・信任度：角落短暫出現圖示（東宇＝扣子、阿昊＝琴鍵），不顯示數字
+   *   ・道具：取得時顯示一行字
+   * ========================================================= */
+  const overlay = {
+    toast: null, ping: null, banner: null,
+    update(dt) {
+      ['toast', 'ping', 'banner'].forEach(k => { const o = this[k]; if (o) { o.t += dt; if (o.t > o.life) this[k] = null; } });
+    },
+    draw(c) {
+      const p = this.ping;
+      if (p) { const a = clamp(p.t * 4, 0, 1) * clamp((p.life - p.t) * 2, 0, 1); CX.drawTrustIcon(c, p.kind, 46, 112 - Math.min(p.t, .4) * 20, a); }
+      const b = this.banner;
+      if (b) { const a = clamp(b.t * 4, 0, 1) * clamp((b.life - b.t) * 2, 0, 1); c.save(); c.globalAlpha = a; c.fillStyle = 'rgba(8,12,28,.86)'; CX.roundRect(c, W / 2 - 220, 330, 440, 40, 10); c.fill(); c.restore(); CX.text(c, b.text, W / 2, 350, 17, '#ffe6b0', { alpha: a }); }
+      const m = this.toast; if (!m) return;
+      const a = clamp(m.t * 4, 0, 1) * clamp((m.life - m.t) * 2, 0, 1);
+      if (a <= 0) return;
+      c.save(); c.globalAlpha = a; c.font = CX.font(17);
+      const lines = CX.wrapText(c, m.text, 680).slice(0, 3);
+      const bh = 40 + lines.length * 26, bw = 780, bx = (W - bw) / 2, by = 96;
+      c.fillStyle = 'rgba(8,12,28,.9)'; CX.roundRect(c, bx, by, bw, bh, 12); c.fill();
+      c.strokeStyle = 'rgba(190,210,255,.5)'; c.lineWidth = 1.5; c.stroke();
+      CX.drawFragment(c, bx + 30, by + bh / 2, m.t);
+      const [ch, n] = m.id.split('-');
+      CX.text(c, `記憶碎片　${(CX.STAGE_INFO[ch] || { no: ch }).no}・${n}${m.isNew ? '　NEW' : ''}`, bx + 58, by + 18, 13, m.isNew ? '#ffe0a0' : '#aebce0', { align: 'left' });
+      c.fillStyle = '#eef2ff'; c.textBaseline = 'top'; c.font = CX.font(17);
+      lines.forEach((ln, k) => c.fillText(ln, bx + 58, by + 32 + k * 26));
+      c.restore();
+    },
+  };
+  CX.overlay = overlay;
+  /** 過場／調查裡拾回記憶碎片（編號如 'c1-3'） */
+  CX.awardMemory = function (id) {
+    const isNew = CX.memory.add(id);
+    if (!CX.stats.found.has(id)) { CX.stats.found.add(id); CX.stats.fragments++; }
+    audio.sfx('pick');
+    const text = CX.memory.text(id) || '……';
+    overlay.toast = { id, text, t: 0, life: Math.min(6, 3 + text.length * .06), isNew };
+    console.log('[memory]', id, isNew ? 'new' : 'again', text);
+  };
+  CX.onTrust = function (kind) { overlay.ping = { kind, t: 0, life: 1.8 }; audio.sfx('trust'); };
+  CX.onItem = function (name) { overlay.banner = { text: '取得道具：' + name, t: 0, life: 2.6 }; };
+
+  /* =========================================================
    * 遊戲控制器：依 FLOW 切換場景
    * ========================================================= */
   const game = {
@@ -318,11 +511,17 @@
     enter(i) {
       this.flowIdx = i;
       const step = CX.FLOW[i];
-      // 有條件的步驟（例如隱藏結局）：條件不成立就跳過
-      if (step.cond && !(CX.CONDITIONS[step.cond] && CX.CONDITIONS[step.cond]())) { console.log('[scene] skip', step.id, '(' + step.cond + ')'); return this.enter(i + 1); }
+      if (!step) { this.scene = new EndScene(); return; }
+      // 有條件的步驟（例如延伸結局）：條件不成立就跳過
+      if (step.cond && !CX.evalCond(step.cond)) { console.log('[scene] skip', step.id || step.type, '(' + step.cond + ')'); return this.enter(i + 1); }
       console.log('[scene]', step.type, step.id || '');
+      if (step.fragTotal) CX.stats.totalFragments += step.fragTotal;
       if (step.type === 'cut') { if (step.bgm) audio.bgm(step.bgm); this.scene = new CutScene(step.id, step); }
       else if (step.type === 'stage') this.startStage(step.id);
+      else if (step.type === 'explore') { if (step.bgm) audio.bgm(step.bgm); this.scene = new ExploreScene(step.id, step); }
+      else if (step.type === 'checkpoint') { CX.checkpoint.save(step.id, step.name); return this.enter(i + 1); }
+      else if (step.type === 'label') return this.enter(i + 1);
+      else if (step.type === 'jump') { const j = CX.FLOW.findIndex(f => f.label === step.to); if (j < 0) console.warn('[flow] 找不到 label', step.to); return this.enter(j < 0 ? i + 1 : j); }
       else this.scene = new EndScene();
       input.down = {};
     },
@@ -332,11 +531,21 @@
       CX.setTouchLayout(id === 2 ? 'none' : id === 4 ? 'jump' : 'full');
     },
     start() {
-      resetStats();
+      resetStats(); CX.resetVars();
+      if (CX.DEBUG.ch) { const i = CX.FLOW.findIndex(f => f.type === 'checkpoint' && f.id === 'ch' + CX.DEBUG.ch); if (i >= 0) return this.enter(i); }
       if (CX.DEBUG.stage) { const i = CX.FLOW.findIndex(f => f.type === 'stage' && f.id === CX.DEBUG.stage); if (i >= 0) return this.enter(i); }
       this.enter(0);
     },
     next() { this.enter(this.flowIdx + 1); },
+    /** 從存檔點繼續（變數一起還原） */
+    continueGame() {
+      const cp = CX.checkpoint.load();
+      const i = cp ? CX.FLOW.findIndex(f => f.type === 'checkpoint' && f.id === cp.id) : -1;
+      if (i < 0) return this.start();
+      resetStats(); CX.resetVars(); Object.assign(CX.vars, cp.vars || {});
+      console.log('[checkpoint] load', cp.id);
+      this.enter(i + 1);
+    },
     restartStage() { this.startStage(CX.FLOW[this.flowIdx].id); },
     toTitle() { audio.bgm('night'); this.flowIdx = -1; this.scene = new TitleScene(); },
     openGallery() { console.log('[scene] gallery'); this.flowIdx = -1; this.scene = new GalleryScene(() => this.toTitle()); },
@@ -350,9 +559,11 @@
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now;   // 限制最大 dt，切換分頁回來不會瞬移
     game.scene.update(dt);
+    overlay.update(dt);
     input.endFrame();
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     game.scene.draw(ctx);
+    overlay.draw(ctx);
     requestAnimationFrame(frame);
   }
 
@@ -363,6 +574,7 @@
   document.getElementById('btn-full').addEventListener('click', () => CX.toggleFullscreen());
   requestAnimationFrame(frame);
   CX.loadImages(CX.assetList(), p => { game.scene.p = p; }).then(() => {
+    if (CX.makePortraits) CX.makePortraits();      // 沈昊、胖達等程式繪製頭像
     game.toTitle();
   });
 })(window.CX);

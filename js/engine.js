@@ -19,6 +19,8 @@ window.CX = window.CX || {};
     auto: params.has('auto'),                     // ?auto=1 自動遊玩（測試用）
     stage: parseInt(params.get('stage') || '0', 10), // ?stage=3 直接跳到某一章
     fast: params.has('fast'),                     // ?fast=1 劇情自動快轉
+    ch: parseInt(params.get('ch') || '0', 10),       // ?ch=1 直接從第 1 章開始（跳到該章的存檔點）
+    pick: parseInt(params.get('pick') || '0', 10),   // ?auto=1&pick=1 自動遊玩時選項一律選第 N 個（0 起算）
   };
 
   /* ---------- 數學小工具 ---------- */
@@ -177,6 +179,13 @@ window.CX = window.CX || {};
         case 'pick': this.tone(1568, .25, 'sine', .08 * v); this.tone(2093, .35, 'sine', .06 * v, .07); break;
         case 'warn': this.tone(660, .12, 'square', .05 * v); this.tone(660, .12, 'square', .05 * v, .18); break;
         case 'page': this.noise(.08, .08 * v, 3000, 'highpass'); break;
+        // ---- 第 1 章起新增 ----
+        case 'a440': this.tone(440, 5, 'sine', .22 * v); this.tone(880, 2.5, 'triangle', .025 * v); break;   // 鋼琴 A 音，拖長
+        case 'keyHi': this.tone(1046.5, .5, 'sine', .07 * v); break;                                      // 被按住的高音
+        case 'fourhands': [130.8, 164.8, 196, 164.8, 146.8, 174.6, 220, 174.6].forEach((f, i) => this.tone(f, .7, 'sine', .1 * v, i * .22)); break;
+        case 'boot': [523.3, 659.3, 784].forEach((f, i) => this.tone(f, .5, 'square', .025 * v, i * .09)); break;   // 2009 年摺疊機開機和弦
+        case 'ring': [784, 880, 1046.5, 880, 784, 880, 1046.5, 1174.7].forEach((f, i) => this.tone(f, .2, 'square', .03 * v, i * .17)); break;
+        case 'trust': this.tone(660, .35, 'sine', .05 * v); this.tone(990, .4, 'sine', .03 * v, .06); break;
       }
     },
     /** 背景音樂：簡單的鋼琴琶音循環（呼應「學過鋼琴」的設定） */
@@ -263,7 +272,7 @@ window.CX = window.CX || {};
 
   /* =========================================================
    * 記憶碎片存檔（localStorage）
-   *   碎片編號格式「章-序號」，例如 '1-3' = 第一章第 3 片。
+   *   碎片編號格式「章-序號」，例如 '1-3' = 序章・一第 3 片、'c1-3' = 第一章〈碎片〉第 3 片。
    *   記錄的是「曾經拾回過」的聯集：跨多次遊玩累計，重來或死亡不會重複計算。
    * ========================================================= */
   const MEM_KEY = 'chuxue.memories.v1';
@@ -285,8 +294,62 @@ window.CX = window.CX || {};
     count() { return this.allIds().filter(id => this.has(id)).length; },
     total() { return this.allIds().length; },
     complete() { const t = this.total(); return t > 0 && this.count() === t; },
-    text(id) { const [ch, i] = id.split('-').map(Number); const m = CX.MEMORIES[ch] && CX.MEMORIES[ch][i - 1]; return m ? m.text : ''; },
+    text(id) { const [ch, i] = id.split('-'); const m = CX.MEMORIES[ch] && CX.MEMORIES[ch][Number(i) - 1]; return m ? m.text : ''; },   // ch 可以是 '1' 或 'c1'
     reset() { this._set = new Set(); this._save(); },
+  };
+
+  /* =========================================================
+   * 遊戲變數（第 1 章起：選項、信任度、旗標）
+   *   CX.vars 每次「開始遊戲」重設；存檔點會一起存。
+   *   信任度不顯示數字，只在增加時於畫面角落短暫出現圖示（main.js）。
+   * ========================================================= */
+  CX.VAR_DEFAULTS = {
+    trustDong: 0, trustHao: 0,          // 0–5
+    toldDream: false, heardCount: false, askedMore: false, goneAlone: false,
+    midEnd: 0, threwKnife: false, stabbed: false,
+    items: [],
+  };
+  CX.vars = {};
+  CX.resetVars = function () { CX.vars = JSON.parse(JSON.stringify(CX.VAR_DEFAULTS)); };
+  CX.resetVars();
+  /** 套用一格／一個選項上的 set、add、item */
+  CX.applyEffects = function (o) {
+    if (!o || !(o.set || o.add || o.item)) return;
+    if (o.set) Object.assign(CX.vars, o.set);
+    if (o.add) for (const k in o.add) {
+      let v = (Number(CX.vars[k]) || 0) + o.add[k];
+      if (/^trust/.test(k)) v = CX.clamp(v, 0, 5);
+      CX.vars[k] = v;
+      if (o.add[k] > 0 && CX.onTrust) CX.onTrust(k);
+    }
+    if (o.item && !CX.vars.items.includes(o.item)) { CX.vars.items.push(o.item); if (CX.onItem) CX.onItem(o.item); }
+    console.log('[vars]', JSON.stringify(CX.vars));
+  };
+  /** 條件判斷：函式、CX.CONDITIONS 名稱、或像 'trustDong>=3 && !toldDream' 的字串 */
+  CX.evalCond = function (c) {
+    if (c == null || c === '') return true;
+    if (typeof c === 'function') return !!c(CX.vars);
+    if (Array.isArray(c)) return c.every(CX.evalCond);
+    if (CX.CONDITIONS && CX.CONDITIONS[c]) return !!CX.CONDITIONS[c]();
+    return String(c).split('&&').every(part => {
+      const s = part.trim(); let m;
+      if ((m = s.match(/^(!?)(\w+)$/))) return m[1] ? !CX.vars[m[2]] : !!CX.vars[m[2]];
+      if ((m = s.match(/^(\w+)\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?|true|false)$/))) {
+        const a = CX.vars[m[1]], b = m[3] === 'true' ? true : m[3] === 'false' ? false : Number(m[3]);
+        switch (m[2]) {
+          case '>=': return a >= b; case '<=': return a <= b; case '>': return a > b;
+          case '<': return a < b; case '==': return a === b; case '!=': return a !== b;
+        }
+      }
+      console.warn('[cond] 看不懂的條件：', s); return false;
+    });
+  };
+  /** 存檔點：記住 FLOW 裡 checkpoint 的 id 與當下變數 */
+  const CP_KEY = 'chuxue.checkpoint.v1';
+  CX.checkpoint = {
+    save(id, name) { try { localStorage.setItem(CP_KEY, JSON.stringify({ id, name, vars: CX.vars, at: Date.now() })); } catch (e) {} console.log('[checkpoint] save', id); },
+    load() { try { return JSON.parse(localStorage.getItem(CP_KEY) || 'null'); } catch (e) { return null; } },
+    clear() { try { localStorage.removeItem(CP_KEY); } catch (e) {} },
   };
 
   /* ---------- 圖片載入 ---------- */
