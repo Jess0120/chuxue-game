@@ -102,7 +102,7 @@
       });
       const hint = CX.touchWanted ? '— 點擊按鈕選擇 —' : '↑ ↓ 選擇　Enter / 空白鍵 確認　G 回憶圖鑑';
       CX.text(c, hint, W / 2, 485, 15, '#e8ecff', { alpha: a * (.55 + .45 * Math.sin(t * 3)) });
-      CX.text(c, '原著〈初雪〉改編・網頁小遊戲　　M 靜音　F 全螢幕', W / 2, 515, 13, 'rgba(200,208,230,.6)');
+      CX.text(c, '序章改編自原著〈初雪〉・第一～四章為遊戲原創（非原作）　　M 靜音　F 全螢幕', W / 2, 515, 13, 'rgba(200,208,230,.6)');
     }
   }
 
@@ -122,7 +122,10 @@
       this.bNext = { x: W - 180, y: 486, w: 120, h: 36 };
       this.bHidden = { x: W / 2 + 90, y: 486, w: 190, h: 36 };
       this.bDoor = { x: W / 2 - 280, y: 486, w: 190, h: 36 };
+      this.bRoof = { x: 664, y: 24, w: 180, h: 34 };   // 右上角留給 HTML 的音量／全螢幕按鈕
     }
+    /** 「頂樓那一晚」：玩過第 2 章（拾回任一片 c2-*）就開放 */
+    get canRoof() { return (CX.MEMORIES.c2 || []).some((_, i) => CX.memory.has('c2-' + (i + 1))); }
     /** 第 2 章分頁：玩過第 2 章（拾回過任一片）就能「重聽門後」 */
     get canDoor() { return this.ch === 'c2' && CX.MEMORIES.c2 && CX.MEMORIES.c2.some((_, i) => CX.memory.has('c2-' + (i + 1)));
     }
@@ -138,7 +141,9 @@
       if (input.keyHit('Escape', 'Backspace', 'Enter', 'NumpadEnter', 'KeyG')) return this.onBack();
       if (done && input.keyHit('KeyH')) return game.playHidden();
       if (this.canDoor && input.keyHit('KeyR')) return game.replayDoor();
+      if (this.canRoof && input.keyHit('KeyT')) return game.openRoof(this.ch);
       if (input.tapped) {
+        if (this.canRoof && input.tapIn(this.bRoof)) return game.openRoof(this.ch);
         const tab = this.tabs.find(r => input.tapIn(r));
         if (tab) this.setCh(tab.ch);
         else if (input.tapIn(this.bPrev)) this.step(-1);
@@ -190,8 +195,105 @@
       drawButton(c, this.bNext, '下一章 ▶', { size: 15 });
       drawButton(c, this.bBack, '返回', { size: 16 });
       if (done) drawButton(c, this.bHidden, (CX.HIDDEN_TEXT.galleryReplay || '重溫隱藏結局') + (CX.touchWanted ? '' : '（H）'), { size: 15, color: '#ffe0a0' });
+      if (this.canRoof) drawButton(c, this.bRoof, '頂樓那一晚' + (CX.touchWanted ? '' : '（T）'), { size: 14, color: '#cfe0ff' });
+      else CX.text(c, '頂樓那一晚：玩過第二章後開放', 754, 41, 12, 'rgba(200,210,240,.4)');
       if (this.canDoor) drawButton(c, this.bDoor, '重聽門後' + (CX.touchWanted ? '' : '（R）'), { size: 15, color: '#cfe8da' });
       if (!CX.touchWanted) CX.text(c, '← → 切換章節　Esc 返回', W / 2, 532, 11, 'rgba(200,210,240,.4)');
+    }
+  }
+
+
+  /* =========================================================
+   * 圖鑑特別頁「頂樓那一晚」：第 2 章刻意空白的那一格（2-3）與前後兩格、相關碎片放在一起。
+   *   ・玩過第 2 章（拾回任一片 c2-*）就能進來；空白格要在第 4 章語音留言（c4-1）後才補上畫面。
+   *   ・全部 45 片拾回後，這裡也是延伸結局〈原點〉的入口之一（另一個是圖鑑底部按鈕）。
+   *   ・頁面上的台詞全部取自既有劇本段落（ch2_dong、ch4_msg），不新增劇情。
+   * ========================================================= */
+  const ROOF_FRAGS = ['c2-2', 'c2-3', 'c2-5', 'c4-1'];
+  function memOf(id) { const [ch, n] = id.split('-'); return (CX.MEMORIES[ch] || [])[n - 1]; }
+  /** 取出 ch2_dong 空白格前後各 n 格；filled＝c4-1 已拾回時，空白格換成第 4 章補上的畫面。效果欄位一律拿掉，重播不改存檔 */
+  function roofSlides(filled) {
+    const src = CX.CUTSCENES.ch2_dong || [], gi = src.findIndex(s => s.blank);
+    if (gi < 0) return [];
+    const strip = s => { const o = Object.assign({}, s); ['frag', 'set', 'add', 'item', 'goto', 'cond', 'hotspot', 'choice'].forEach(k => delete o[k]); return o; };
+    const before = src.slice(Math.max(0, gi - 3), gi).map(strip), after = src.slice(gi + 1, gi + 3).map(strip);
+    let gap = [strip(src[gi])];
+    if (filled) {
+      const m = CX.CUTSCENES.ch4_msg || [];
+      gap = m.filter(s => s.bg === 'pushGap').filter((s, i, a) => s.text || a.findIndex(x => !x.text) === i).map(strip);
+      gap.forEach(g => { g.tag = '那一秒半'; delete g.lock; });
+    }
+    return before.concat(gap, after);
+  }
+  class RoofScene {
+    constructor(onBack) {
+      this.t = 0; this.onBack = onBack; this.weather = new CX.Weather('rain', .5);
+      CX.setTouchLayout('none');
+      this.filled = CX.memory.has('c4-1');
+      const pw = 256, ph = 144, gap = 22, x0 = (W - pw * 3 - gap * 2) / 2;
+      this.panels = [0, 1, 2].map(i => ({ x: x0 + i * (pw + gap), y: 112, w: pw, h: ph }));
+      this.bPlay = { x: W / 2 - 300, y: 486, w: 190, h: 36 };
+      this.bBack = { x: W / 2 - 70, y: 486, w: 140, h: 36 };
+      this.bOrigin = { x: W / 2 + 110, y: 486, w: 190, h: 36 };
+    }
+    update(dt) {
+      this.t += dt; this.weather.update(dt, 4);
+      if (this.t < .25) return;
+      const done = CX.memory.complete();
+      if (input.keyHit('Escape', 'Backspace', 'KeyT')) return this.onBack();
+      if (input.keyHit('Enter', 'NumpadEnter', 'Space')) return game.playRoof();
+      if (done && input.keyHit('KeyH')) return game.playHidden();
+      if (input.tapped) {
+        if (input.tapIn(this.bPlay)) return game.playRoof();
+        if (input.tapIn(this.bBack)) return this.onBack();
+        if (done && input.tapIn(this.bOrigin)) return game.playHidden();
+      }
+    }
+    drawPanel(c, r, key, label, caption, dim) {
+      c.save(); CX.roundRect(c, r.x, r.y, r.w, r.h, 6); c.clip();
+      c.translate(r.x, r.y); c.scale(r.w / W, r.h / H);
+      if (key) CX.drawBackdrop(c, key, this.t); else { c.fillStyle = '#5c5f66'; c.fillRect(0, 0, W, H); }
+      c.fillStyle = 'rgba(40,70,140,.22)'; c.fillRect(0, 0, W, H);
+      c.restore();
+      c.save(); c.strokeStyle = dim ? 'rgba(200,210,240,.25)' : 'rgba(200,215,255,.55)'; c.lineWidth = 1.5; CX.roundRect(c, r.x, r.y, r.w, r.h, 6); c.stroke(); c.restore();
+      CX.text(c, label, r.x + r.w / 2, r.y - 12, 14, '#cfe0ff');
+      c.save(); c.font = CX.font(13); c.fillStyle = 'rgba(225,232,250,.85)'; c.textBaseline = 'top';
+      CX.wrapText(c, caption, r.w).slice(0, 3).forEach((ln, k) => c.fillText(ln, r.x, r.y + r.h + 8 + k * 18));
+      c.restore();
+    }
+    draw(c) {
+      const m = CX.memory, done = m.complete();
+      c.fillStyle = '#070a16'; c.fillRect(0, 0, W, H);
+      this.weather.draw(c, .5);
+      CX.text(c, '頂樓那一晚', 60, 48, 30, '#f2f5ff', { align: 'left', bold: true, shadow: '#8fa8ff' });
+      CX.text(c, '2009年・頂樓　東宇沒有說出口的那一秒半，和它前後的兩格（遊戲原創，非原作）', 60, 80, 13, 'rgba(200,210,240,.7)', { align: 'left' });
+      const [a, g, b] = this.panels;
+      this.drawPanel(c, a, 'roof', '之前', '東宇：「進來。」阿昊：「放手。」\n東宇：「進來，阿昊。」');
+      if (this.filled) this.drawPanel(c, g, 'pushGap', '那一秒半', '雨中，阿昊的手按在東宇的胸口上，用力推出去。東宇的手，仍然抓著他的衣領。');
+      else {
+        this.drawPanel(c, g, null, '那一秒半', '（空白。東宇不肯講的一格——第四章語音留言之後補上）', true);
+        CX.text(c, '？', g.x + g.w / 2, g.y + g.h / 2, 40, 'rgba(255,255,255,.35)');
+      }
+      this.drawPanel(c, b, 'roof', '之後', '我用力把他往裡面拉。兩個人一起往後倒，他的手撞到欄杆，我的手肘撞到胖達。');
+      // 相關碎片
+      CX.text(c, '相關的記憶碎片', 60, 326, 15, '#aebce0', { align: 'left' });
+      ROOF_FRAGS.forEach((id, i) => {
+        const mem = memOf(id), has = m.has(id), y = 340 + i * 31;
+        c.fillStyle = has ? 'rgba(160,180,255,.1)' : 'rgba(255,255,255,.04)'; CX.roundRect(c, 60, y, W - 120, 27, 6); c.fill();
+        if (has) CX.drawFragment(c, 80, y + 13, 0); else CX.text(c, '·', 80, y + 13, 20, 'rgba(255,255,255,.3)');
+        c.save(); c.textBaseline = 'middle'; c.font = CX.font(12); c.fillStyle = 'rgba(200,210,240,.5)'; c.fillText(id, 98, y + 14);
+        c.font = CX.font(14); c.fillStyle = has ? '#eef2ff' : 'rgba(220,225,240,.55)';
+        c.fillText(has ? mem.text : '？？？' + (mem && mem.lockedHint ? '　（' + mem.lockedHint + '）' : ''), 150, y + 14);
+        c.restore();
+      });
+      const got = ROOF_FRAGS.filter(id => m.has(id)).length;
+      CX.text(c, done ? '全部記憶已拾回：可以從這裡進入延伸結局〈原點〉（非原作）。'
+        : `這一頁 ${got} / ${ROOF_FRAGS.length}　・全部 ${m.total()} 片拾回後，這裡會開啟延伸結局〈原點〉（非原作）的入口。`,
+        W / 2, 474, 12, done ? '#ffe0a0' : 'rgba(200,210,240,.55)');
+      drawButton(c, this.bPlay, '播放這一段' + (CX.touchWanted ? '' : '（Enter）'), { size: 15, color: '#cfe0ff' });
+      drawButton(c, this.bBack, '返回圖鑑', { size: 15 });
+      if (done) drawButton(c, this.bOrigin, '延伸結局〈原點〉' + (CX.touchWanted ? '' : '（H）'), { size: 14, color: '#ffe0a0' });
+      if (!CX.touchWanted) CX.text(c, 'Esc／T 返回圖鑑', W / 2, 532, 11, 'rgba(200,210,240,.4)');
     }
   }
 
@@ -499,8 +601,10 @@
       if (this.ending) {
         const tag = this.ending.name + '（' + this.ending.sub + '）' + (this.origin ? '　＋　延伸結局・原點（非原作）' : '');
         CX.text(c, tag, W / 2, 188, 20, '#3a3050', { alpha: a, bold: true, shadow: 'rgba(255,255,255,.9)', blur: 10 });
-        const seen = ['A', 'B', 'C'].map(k => (this.seen.includes(k) ? '❄' : '・') + k).join('　');
-        CX.text(c, `已達成的結局　${seen}　（${this.seen.length} / 3）`, W / 2, 214, 15, '#4a4452', { alpha: a });
+        // M5：累計顯示改成「已達成的寫出名稱、沒達成的寫？？？」，比只寫字母清楚
+        const names = {}; Object.values(CX.ENDINGS).forEach(e => { names[e.key] = e.name.replace(/^結局\s*[A-C]\s*/, ''); });
+        const seen = ['A', 'B', 'C'].map(k => this.seen.includes(k) ? `❄ ${k} ${names[k]}` : `・${k} ？？？`).join('　　');
+        CX.text(c, `已達成的結局（${this.seen.length} / 3）　${seen}`, W / 2, 214, 15, '#4a4452', { alpha: a });
       }
       const sec = Math.round((performance.now() - s.start) / 1000);
       const a2 = clamp((t - 1.5) / 1.5, 0, 1);
@@ -516,6 +620,7 @@
         drawButton(c, this.btns[0], '回到標題', { selected: this.sel === 0, size: 17, selFill: 'rgba(70,58,96,.85)' });
         drawButton(c, this.btns[1], '回憶圖鑑' + (CX.touchWanted ? '' : '（G）'), { selected: this.sel === 1, size: 17, selFill: 'rgba(70,58,96,.85)' });
       }
+      if (this.ending) CX.text(c, this.origin ? '第一～四章、結局 A／B／C 為遊戲原創，延伸結局〈原點〉為遊戲延伸，皆非原作。' : '第一～四章與結局 A／B／C 為遊戲原創，非原作。', W / 2, 531, 12, 'rgba(60,50,70,.85)', { alpha: a2 });
     }
   }
 
@@ -637,7 +742,14 @@
     restartStage() { this.startStage(CX.FLOW[this.flowIdx].id); },
     toTitle() { audio.bgm('night'); this.flowIdx = -1; this.scene = new TitleScene(); },
     openGallery(ch) { console.log('[scene] gallery'); this.flowIdx = -1; this.scene = new GalleryScene(() => this.toTitle()); if (ch && CX.MEMORIES[ch]) this.scene.ch = ch; },
-    /** 從圖鑑重溫隱藏結局，看完回到圖鑑 */
+    /** 圖鑑特別頁「頂樓那一晚」；playRoof＝重播那一段（不改存檔），看完回到特別頁 */
+    openRoof(ch) { console.log('[scene] roof night'); this.flowIdx = -1; this.galleryCh = ch || this.galleryCh; this.scene = new RoofScene(() => this.openGallery(this.galleryCh)); },
+    playRoof() {
+      const filled = CX.memory.has('c4-1'); console.log('[scene] cut roof night (replay)', filled ? 'filled' : 'blank');
+      audio.bgm('none'); this.flowIdx = -1;
+      this.scene = new CutScene('roofNight', { list: roofSlides(filled), rain: true, onDone: () => this.openRoof() });
+    },
+    /** 從圖鑑重溫延伸結局〈原點〉，看完回到圖鑑 */
     playHidden() { console.log('[scene] cut hidden (replay)'); audio.bgm('snow'); this.flowIdx = -1; this.scene = new CutScene('origin', { snow: true, onDone: () => this.openGallery() }); },
   };
   CX.game = game;

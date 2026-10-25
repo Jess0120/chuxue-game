@@ -219,7 +219,6 @@
     { type: 'cut', id: 'ch2_police', bgm: 'night', weather: 'none' },   // 站在哪一邊
     { type: 'cut', id: 'ch2_after', bgm: 'night', weather: 'none' },
     { type: 'cut', id: 'ch2_gate', bgm: 'snow', weather: 'none' },
-    // ── 第 3～4 章：製作中 ──
     // ── 第 3 章〈港口〉（story-ch3.js）──
     { type: 'checkpoint', id: 'ch3', name: '第三章　港口' },
     { type: 'cut', id: 'ch3_title', bgm: 'none', weather: 'none', fragTotal: 5 },
@@ -296,7 +295,7 @@
     // 4-4 尾聲・初雪（共通）
     { type: 'label', label: 'ch4_epi' },
     { type: 'cut', id: 'ch4_epilogue', bgm: 'snow', snow: true },
-    // 〔延伸〕原點（非正典）：拾回全部 45 片碎片才播放
+    // 〔延伸〕原點（非原作）：拾回全部 45 片碎片才播放
     { type: 'cut', id: 'origin', bgm: 'snow', snow: true, cond: 'allMemories' },
     { type: 'end' },
   ];

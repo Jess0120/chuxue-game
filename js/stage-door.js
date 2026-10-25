@@ -149,11 +149,34 @@
       CX.vignette(ctx, .85);
     }
     drawBanner(ctx, title, sub) {
+      // M5：沒聽出來時，把原因說清楚（最長連續不到 20／休止時按了）
+      const why = [];
+      if (!this.success) {
+        if (this.maxCombo < NEED_COMBO) why.push(`最長連續 ${this.maxCombo} 下（要 ${NEED_COMBO} 下）`);
+        if (this.restPress) why.push(`休止時按了 ${this.restPress} 次`);
+      }
       super.drawBanner(ctx, '— 門後 —', this.success ? '三十下，停兩下。' : '……只聽得見悶響。');
+      if (why.length) CX.text(ctx, why.join('・'), W / 2, H / 2 + 50, 14, '#e8c8c8', { alpha: clamp(this.stateT * 3, 0, 1) });
+    }
+    /** M5：門檻提示——底部 20 顆小點，跟著「目前連續命中」亮起；連續達 20 下後保持亮著（休止沒按＝暖色「聽清楚了」，休止按過＝灰色） */
+    drawMeter(ctx) {
+      const full = this.maxCombo >= NEED_COMBO, ok = full && !this.restPress, n = full ? NEED_COMBO : Math.min(this.combo, NEED_COMBO);
+      const gap = 12, x0 = W / 2 + 40 - (NEED_COMBO - 1) * gap / 2, y = 502;
+      for (let i = 0; i < NEED_COMBO; i++) {
+        ctx.beginPath(); ctx.arc(x0 + i * gap, y, 3.2, 0, 6.283);
+        ctx.fillStyle = i < n ? (ok ? 'rgba(255,226,170,.95)' : full ? 'rgba(200,190,190,.6)' : 'rgba(200,235,215,.85)') : 'rgba(255,255,255,.14)'; ctx.fill();
+      }
+      const label = ok ? '聽清楚了' : `連續聽準 ${n} / ${NEED_COMBO}`;
+      CX.text(ctx, label, x0 - 16, y, 13, ok ? '#ffe2aa' : 'rgba(220,232,226,.75)', { align: 'right' });
+      if (this.restPress) CX.text(ctx, `休止按了 ${this.restPress} 次`, x0 + (NEED_COMBO - 1) * gap + 16, y, 12, 'rgba(255,176,160,.85)', { align: 'left' });
     }
     draw(ctx) {
       super.draw(ctx);
-      if (this.status === 'play' && !CX.touchWanted && this.stateT < 6) CX.text(ctx, '休止的時候，什麼都不要按', W / 2, 515, 13, 'rgba(220,226,245,.55)');
+      if (this.status === 'play') {
+        this.drawMeter(ctx);
+        const inRest = this.beats.some(b => b.rest && Math.abs(b.time - this.clock) < .5);
+        if (this.stateT < 6 || inRest) CX.text(ctx, '休止的時候，什麼都不要按', W / 2, 526, 13, inRest ? '#ffd8b0' : 'rgba(220,226,245,.55)');
+      }
     }
   }
   CX.STAGES.door = StageDoor;
