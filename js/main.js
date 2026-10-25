@@ -25,10 +25,13 @@
   //   found：本次遊玩拾回過的碎片編號（Set，不會重複）
   //   圖鑑與隱藏結局用的是跨遊玩累計的 CX.memory（engine.js）
   CX.stats = { fragments: 0, totalFragments: 0, retries: 0, start: 0, found: new Set() };
-  function resetStats() { Object.assign(CX.stats, { fragments: 0, totalFragments: 0, retries: 0, start: performance.now(), found: new Set() }); }
+  function resetStats() { Object.assign(CX.stats, { fragments: 0, totalFragments: 0, retries: 0, start: performance.now(), found: new Set(), originSeen: false }); }
 
   /** 隱藏結局條件：跨多次遊玩，曾經拾回過全部碎片（對玩家比較友善，不必一次全收） */
   CX.CONDITIONS = { allMemories: () => CX.memory.complete() };
+  /** 已達成過的正式結局（A／B／C），跨多次遊玩累計 */
+  const END_KEY = 'chuxue.endings.v1';
+  CX.endingsSeen = function () { try { const a = JSON.parse(localStorage.getItem(END_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
 
   /* ---------- 畫面按鈕（滑鼠、觸控、鍵盤選取共用） ---------- */
   function drawButton(c, r, label, opt = {}) {
@@ -156,7 +159,7 @@
       // 章節分頁
       for (const r of this.tabs) {
         const list = CX.MEMORIES[r.ch], got = list.filter((_, i) => m.has(`${r.ch}-${i + 1}`)).length;
-        drawButton(c, r, `${CX.STAGE_INFO[r.ch].no}　${got}/${list.length}`, { selected: r.ch === this.ch, size: this.tabs.length > 4 ? 14 : 16 });
+        drawButton(c, r, `${CX.STAGE_INFO[r.ch].no}　${got}/${list.length}`, { selected: r.ch === this.ch, size: this.tabs.length > 7 ? 13 : this.tabs.length > 4 ? 14 : 16 });
       }
       CX.text(c, CX.STAGE_INFO[this.ch].name, W / 2, 147, 15, '#aebce0');
       // 條目
@@ -336,6 +339,11 @@
       this.drawBg(c, s, 1.02 + k * .08, (k - .5) * -16);   // 緩慢推鏡
       c.globalAlpha = 1;
       if (s.tint === 'cold') { c.fillStyle = 'rgba(30,60,130,.28)'; c.fillRect(-20, -20, W + 40, H + 40); }   // 回放段的冷藍色調
+      if (s.tint === 'soft') {                                          // 第 4 章尾聲：柔和的白藍色調
+        c.fillStyle = 'rgba(214,228,255,.22)'; c.fillRect(-20, -20, W + 40, H + 40);
+        const g = c.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 560); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(235,242,255,.35)');
+        c.fillStyle = g; c.fillRect(-20, -20, W + 40, H + 40);
+      }
       if (s.tint === 'frost') {                                         // 第 3 章：同一個港口，地上多了一層很薄的雪
         const g = c.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(235,240,250,0)'); g.addColorStop(1, 'rgba(235,240,250,.38)');
         c.fillStyle = g; c.fillRect(-20, H * .55, W + 40, H * .45 + 20); c.fillStyle = 'rgba(10,16,34,.18)'; c.fillRect(-20, -20, W + 40, H + 40);
@@ -462,6 +470,12 @@
     constructor() {
       this.t = 0; this.weather = new CX.Weather('snow', 2); CX.setTouchLayout('none'); audio.bgm('snow');
       this.sel = 0;
+      // 這次達成的結局（第 4 章 ending 變數），累計記錄在 localStorage
+      this.ending = CX.ENDINGS && CX.ENDINGS[CX.vars.ending];
+      this.seen = CX.endingsSeen();
+      if (this.ending && !this.seen.includes(this.ending.key)) { this.seen.push(this.ending.key); try { localStorage.setItem(END_KEY, JSON.stringify(this.seen)); } catch (e) { /* 存不了就算了 */ } }
+      this.origin = !!CX.stats.originSeen;
+      console.log('[end]', this.ending ? this.ending.name : '（無結局）', '已達成：', this.seen.join(','), this.origin ? '＋延伸結局・原點' : '');
       this.btns = [{ x: W / 2 - 230, y: 478, w: 210, h: 40, act: 'title' }, { x: W / 2 + 20, y: 478, w: 210, h: 40, act: 'gallery' }];
     }
     choose(act) { audio.sfx('page'); if (act === 'gallery') game.openGallery(); else game.toTitle(); }
@@ -481,10 +495,16 @@
       c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(0, 0, W, H);
       this.weather.draw(c);
       const a = clamp(t / 2, 0, 1);
-      CX.text(c, '初雪.......完', W / 2, 160, 64, '#4a4050', { alpha: a, bold: true, shadow: 'rgba(255,255,255,.8)', blur: 20 });
+      CX.text(c, '初雪.......完', W / 2, this.ending ? 128 : 160, 64, '#4a4050', { alpha: a, bold: true, shadow: 'rgba(255,255,255,.8)', blur: 20 });
+      if (this.ending) {
+        const tag = this.ending.name + '（' + this.ending.sub + '）' + (this.origin ? '　＋　延伸結局・原點（非原作）' : '');
+        CX.text(c, tag, W / 2, 188, 20, '#3a3050', { alpha: a, bold: true, shadow: 'rgba(255,255,255,.9)', blur: 10 });
+        const seen = ['A', 'B', 'C'].map(k => (this.seen.includes(k) ? '❄' : '・') + k).join('　');
+        CX.text(c, `已達成的結局　${seen}　（${this.seen.length} / 3）`, W / 2, 214, 15, '#4a4452', { alpha: a });
+      }
       const sec = Math.round((performance.now() - s.start) / 1000);
       const a2 = clamp((t - 1.5) / 1.5, 0, 1);
-      c.fillStyle = `rgba(255,255,255,${.55 * a2})`; CX.roundRect(c, W / 2 - 220, 228, 440, 158, 14); c.fill();
+      c.fillStyle = `rgba(255,255,255,${.55 * a2})`; CX.roundRect(c, W / 2 - 220, 232, 440, 154, 14); c.fill();
       CX.text(c, `本次拾回記憶碎片　${s.fragments} / ${s.totalFragments}`, W / 2, 256, 20, '#3a3442', { alpha: a2 });
       CX.text(c, `回憶圖鑑（累計）　${m.count()} / ${m.total()}`, W / 2, 289, 18, '#4a4452', { alpha: a2 });
       CX.text(c, `重來次數　${s.retries}`, W / 2, 321, 18, '#4a4452', { alpha: a2 });
@@ -558,7 +578,7 @@
       if (step.cond && !CX.evalCond(step.cond)) { console.log('[scene] skip', step.id || step.type, '(' + step.cond + ')'); return this.enter(i + 1); }
       console.log('[scene]', step.type, step.id || '');
       if (step.fragTotal) CX.stats.totalFragments += step.fragTotal;
-      if (step.type === 'cut') { if (step.bgm) audio.bgm(step.bgm); this.scene = new CutScene(step.id, step); }
+      if (step.type === 'cut') { if (step.bgm) audio.bgm(step.bgm); if (step.id === 'origin') CX.stats.originSeen = true; this.scene = new CutScene(step.id, step); }
       else if (step.type === 'stage') this.startStage(step.id);
       else if (step.type === 'explore') { if (step.bgm) audio.bgm(step.bgm); this.scene = new ExploreScene(step.id, step); }
       else if (step.type === 'checkpoint') { CX.checkpoint.save(step.id, step.name); return this.enter(i + 1); }
@@ -578,9 +598,10 @@
     },
     startStage(id) {
       const quiet = id === 2 || id === 'door' || id === 'listen3';        // 節奏關：不放背景音樂、不顯示方向鍵
+      const runner = id === 4 || id === 'run4b' || id === 'run4c';        // 自動奔跑（只有跳躍鍵）
       audio.bgm(quiet ? 'none' : id === 4 ? 'rain' : 'tense');
       this.scene = new CX.STAGES[id](this);
-      CX.setTouchLayout(quiet ? 'none' : id === 4 ? 'jump' : 'full');
+      CX.setTouchLayout(quiet ? 'none' : runner ? 'jump' : 'full');
     },
     /** 圖鑑「重聽門後」：重玩節奏關。成功的話補上碎片；第 3 章真正開始之前，存檔裡的 heardCount 也一起改成 true */
     replayDoor() {
@@ -617,7 +638,7 @@
     toTitle() { audio.bgm('night'); this.flowIdx = -1; this.scene = new TitleScene(); },
     openGallery(ch) { console.log('[scene] gallery'); this.flowIdx = -1; this.scene = new GalleryScene(() => this.toTitle()); if (ch && CX.MEMORIES[ch]) this.scene.ch = ch; },
     /** 從圖鑑重溫隱藏結局，看完回到圖鑑 */
-    playHidden() { console.log('[scene] cut hidden (replay)'); audio.bgm('snow'); this.flowIdx = -1; this.scene = new CutScene('hidden', { snow: true, onDone: () => this.openGallery() }); },
+    playHidden() { console.log('[scene] cut hidden (replay)'); audio.bgm('snow'); this.flowIdx = -1; this.scene = new CutScene('origin', { snow: true, onDone: () => this.openGallery() }); },
   };
   CX.game = game;
 

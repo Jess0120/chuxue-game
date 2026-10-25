@@ -274,6 +274,120 @@
     },
   });
 
+  /* ---------- 第 4 章〈初雪〉 ---------- */
+  /** 一排搖晃的火舌（x～x+w，底部在 y；h＝最高火舌的高度） */
+  CX.drawFlames = function (c, x, y, w, h, t, seed = 0) {
+    const n = Math.max(3, Math.round(w / 14));
+    for (let layer = 0; layer < 2; layer++) {
+      c.fillStyle = layer ? 'rgba(255,214,120,.85)' : 'rgba(255,110,40,.75)';
+      for (let i = 0; i < n; i++) {
+        const fx = x + (i + .5) * w / n, k = .45 + .55 * Math.abs(Math.sin(i * 2.3 + seed));
+        const fh = h * k * (layer ? .55 : 1) * (.8 + .2 * Math.sin(t * (7 + i % 3) + i + seed));
+        const hw = w / n * (layer ? .38 : .62), sway = Math.sin(t * 5 + i * 1.7 + seed) * hw * .5;
+        c.beginPath(); c.moveTo(fx - hw, y); c.quadraticCurveTo(fx - hw * .6 + sway * .5, y - fh * .55, fx + sway, y - fh);
+        c.quadraticCurveTo(fx + hw * .6 + sway * .5, y - fh * .55, fx + hw, y); c.fill();
+      }
+    }
+  };
+  /** 黑色的海＋岸壁（fire：遠處火光；day：三天後雪中的灰白天色） */
+  function seawall(c, t, o = {}) {
+    if (o.day) sky(c, '#a9b0bb', '#7d8591'); else sky(c, '#070a14', '#141b2a');
+    if (o.fire) {
+      const g = c.createRadialGradient(780, 300, 20, 780, 300, 420); g.addColorStop(0, 'rgba(255,150,60,.55)'); g.addColorStop(1, 'rgba(255,90,30,0)');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 5; i++) {                          // 燒起來的貨櫃剪影與火舌
+        const x = 600 + i * 70, h = 60 + (i * 37 % 50);
+        c.fillStyle = '#120c0c'; c.fillRect(x, 330 - h, 64, h);
+        CX.drawFlames(c, x, 330 - h, 64, 46, t, i * 1.9);
+      }
+    } else harbor(c, 0, 120, W, 230, { far: o.day ? 'rgba(120,126,138,1)' : 'rgba(30,34,46,1)', night: !o.day });
+    // 海
+    c.fillStyle = o.day ? '#3c4552' : '#04060c'; c.fillRect(0, 330, W, 120);
+    c.strokeStyle = o.fire ? 'rgba(255,150,80,.35)' : o.day ? 'rgba(220,228,240,.25)' : 'rgba(150,170,210,.18)'; c.lineWidth = 1.5;
+    for (let i = 0; i < 14; i++) { const y = 345 + i * 7, x = (i * 131 + t * 18 * (i % 2 ? 1 : -1)) % W; c.beginPath(); c.moveTo(x - 60, y); c.lineTo(x + 60, y); c.stroke(); }
+    // 岸壁與積雪
+    c.fillStyle = o.day ? '#5a606a' : '#1d2028'; c.fillRect(0, 448, W, 92);
+    c.fillStyle = 'rgba(240,244,252,.75)'; c.fillRect(0, 446, W, 5);
+    snowFloor(c, 452);
+  }
+  Object.assign(CX.BACKDROPS, {
+    seawallFire: (c, t) => seawall(c, t, { fire: true }),
+    seawall: (c, t) => seawall(c, t, {}),
+    seawallDay: (c, t) => seawall(c, t, { day: true }),
+    /** A：醫院走廊，白色日光燈，盡頭的窗外在下雪 */
+    hospital(c, t) {
+      sky(c, '#dfe3e8', '#b9bec6');
+      c.fillStyle = '#c8cdd4'; c.beginPath(); c.moveTo(0, 0); c.lineTo(380, 200); c.lineTo(580, 200); c.lineTo(W, 0); c.fill();
+      c.fillStyle = '#9aa0a9'; c.beginPath(); c.moveTo(0, H); c.lineTo(380, 330); c.lineTo(580, 330); c.lineTo(W, H); c.fill();
+      c.fillStyle = '#e9edf2'; c.fillRect(380, 200, 200, 130);
+      c.fillStyle = '#8f9aa8'; c.fillRect(430, 220, 100, 80);                  // 盡頭的窗
+      c.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 14; i++) c.fillRect(432 + (i * 37 % 96), 222 + ((i * 53 + t * 14) % 76), 2, 2);
+      for (let i = 0; i < 4; i++) { const k = i / 4, y = 8 + k * 150; c.fillStyle = 'rgba(255,255,255,.95)'; c.fillRect(400 - (1 - k) * 260, y, 160 + (1 - k) * 520 - 0, 6 - k * 3); }
+      c.fillStyle = '#7a828e'; c.fillRect(120, 150, 70, 300); c.fillStyle = 'rgba(160,200,230,.5)'; c.fillRect(132, 170, 46, 60);   // 加護病房的門
+      CX.text(c, '加護病房', 155, 140, 14, '#4a525e');
+    },
+    /** B：救護車後車廂 */
+    ambulance(c, t) {
+      sky(c, '#cfd6de', '#9ea8b4');
+      c.fillStyle = '#e8ecf0'; c.fillRect(0, 380, W, 160);
+      c.fillStyle = '#2a3240'; c.fillRect(330, 80, 130, 170); c.fillRect(500, 80, 130, 170);   // 後門的兩扇窗
+      for (let i = 0; i < 2; i++) { const x = 330 + i * 170, a = .4 + .4 * Math.max(0, Math.sin(t * 5 + i)); c.fillStyle = `rgba(255,120,110,${a * .5})`; c.fillRect(x, 80, 130, 170); }
+      c.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 18; i++) c.fillRect(332 + (i * 61 % 296), 82 + ((i * 41 + t * 30) % 166), 2, 2);
+      c.fillStyle = '#5c6a7a'; c.fillRect(60, 300, 240, 90); c.fillStyle = '#7a8898'; c.fillRect(60, 290, 240, 14);   // 長椅
+      c.fillStyle = '#f2f4f6'; c.fillRect(640, 320, 300, 70);                                                      // 擔架
+    },
+    /** 語音留言：黑畫面，只有聲音波形 */
+    voicemail(c, t) {
+      c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+      c.strokeStyle = 'rgba(190,205,235,.85)'; c.lineWidth = 2; c.beginPath();
+      for (let x = 120; x <= 840; x += 4) {
+        const k = Math.sin((x - 120) / 720 * Math.PI);
+        const a = (8 + 26 * Math.abs(Math.sin(t * 3.1 + x * .013)) * Math.abs(Math.sin(t * 1.3 + x * .007))) * k;
+        const y = 200 + Math.sin(x * .09 + t * 12) * a;
+        x === 120 ? c.moveTo(x, y) : c.lineTo(x, y);
+      }
+      c.stroke();
+      c.fillStyle = 'rgba(190,205,235,.18)'; c.fillRect(120, 200, 720, 1);
+    },
+    /** 4-2：補上第 2 章「刻意缺格」的那一格。雨中，沈昊的手按在東宇胸口推出去，東宇仍抓著他的衣領 */
+    pushGap(c, t) {
+      sky(c, '#3c424c', '#22262e');
+      c.fillStyle = '#2b2f36'; c.fillRect(0, 420, W, 120);
+      c.fillStyle = '#1a1d22'; c.fillRect(0, 410, W, 12);                      // 頂樓邊緣
+      if (CX.drawDongyu && CX.drawHao) {
+        CX.drawHao(c, 420, 430, { facing: 1, t: 0, young: true, scale: 2.2 });
+        CX.drawDongyu(c, 540, 430, { facing: -1, t: 0, outfit: 'hoodie', scale: 2.1 });
+      }
+      c.strokeStyle = '#5a6478'; c.lineWidth = 10; c.lineCap = 'round';        // 沈昊推出去的手
+      c.beginPath(); c.moveTo(432, 330); c.lineTo(512, 318); c.stroke();
+      c.strokeStyle = '#2b3140'; c.lineWidth = 10;                             // 東宇抓住衣領的手
+      c.beginPath(); c.moveTo(528, 310); c.lineTo(448, 300); c.stroke();
+      c.fillStyle = 'rgba(200,205,215,.12)'; c.fillRect(0, 0, W, H);
+    },
+    /** B：港口附近的小教堂，外面在下雪；遺照是工作證上的照片 */
+    chapel(c, t) {
+      sky(c, '#3a3430', '#211d1b');
+      c.fillStyle = '#5a6070'; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(150 + i * 300, 60); c.arc(210 + i * 300, 100, 60, Math.PI, 0); c.lineTo(270 + i * 300, 260); c.lineTo(150 + i * 300, 260); c.fill(); }
+      c.fillStyle = 'rgba(255,255,255,.75)'; for (let i = 0; i < 30; i++) { const k = i % 3; c.fillRect(160 + k * 300 + (i * 29 % 100), 60 + ((i * 47 + t * 16) % 196), 2, 2); }
+      c.fillStyle = '#4a3a2c'; c.fillRect(380, 280, 200, 20);
+      c.fillStyle = '#e8e4da'; c.fillRect(440, 190, 80, 96); c.fillStyle = '#20232a'; c.fillRect(440, 190, 80, 96);
+      c.fillStyle = '#e8e4da'; c.fillRect(446, 196, 68, 84); c.fillStyle = '#6a7380'; c.fillRect(452, 202, 56, 72);
+      c.fillStyle = '#2a2420'; c.beginPath(); c.arc(480, 228, 13, 0, 6.283); c.fill(); c.fillRect(462, 244, 36, 30);
+      c.fillStyle = '#ece6d6'; c.beginPath(); c.arc(420, 300, 12, 0, 6.283); c.arc(540, 300, 12, 0, 6.283); c.fill();   // 白花
+      c.fillStyle = '#2e2620'; for (let r = 0; r < 3; r++) c.fillRect(60, 360 + r * 60, 840, 24);                       // 長椅
+    },
+    /** B：教堂外的台階，雪落在台階上；警車在門口等 */
+    chapelOut(c, t) {
+      sky(c, '#7e858f', '#4c525c');
+      c.fillStyle = '#3c3a3a'; c.fillRect(60, 40, 360, 330); c.fillStyle = '#2a2422'; c.fillRect(190, 200, 100, 170);
+      for (let i = 0; i < 4; i++) { c.fillStyle = '#6a6c72'; c.fillRect(120 - i * 20, 370 + i * 22, 240 + i * 40, 22); c.fillStyle = 'rgba(240,244,250,.7)'; c.fillRect(120 - i * 20, 370 + i * 22, 240 + i * 40, 4); }
+      snowFloor(c, 458);
+      c.fillStyle = '#d8dce2'; CX.roundRect(c, 600, 380, 260, 76, 14); c.fill(); c.fillStyle = '#2c3a5a'; c.fillRect(600, 410, 260, 16);
+      const on = Math.sin(t * 6) > 0; c.fillStyle = on ? '#ff5a5a' : '#5a8cff'; c.fillRect(700, 368, 30, 12); c.fillStyle = on ? '#5a8cff' : '#ff5a5a'; c.fillRect(730, 368, 30, 12);
+      c.fillStyle = '#1a1c20'; c.beginPath(); c.arc(650, 458, 18, 0, 6.283); c.arc(810, 458, 18, 0, 6.283); c.fill();
+    },
+  });
+
   CX.drawBackdrop = function (c, key, t = 0) {
     const f = CX.BACKDROPS[key];
     if (f) f(c, t); else { c.fillStyle = '#0a0a12'; c.fillRect(0, 0, W, H); }

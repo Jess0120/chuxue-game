@@ -666,13 +666,13 @@
         if (this.inv > 0) continue;
         this.inv = 1.2; this.slow = .8;
         if (o.type === 'puddle') audio.sfx('splash', .6);
-        this.popup(o.type === 'puddle' ? '踩到水窪！' : '撞到了！', box.x, p.y - 10, { color: '#ffb0bc' });
-        this.damage('跌倒在雨中……來不及了。');
+        this.popup(o.type === 'puddle' ? (this.puddleMsg || '踩到水窪！') : '撞到了！', box.x, p.y - 10, { color: '#ffb0bc' });
+        this.damage(this.fallMsg || '跌倒在雨中……來不及了。');
       }
       this.collect(box);
       // 閃電（只是氣氛）
       this.flashT -= dt;
-      if (this.flashT < 0) { this.flashT = 5 + Math.random() * 4; this.flash(.35, '#dfe6ff'); }
+      if (this.flashT < 0) { this.flashT = 5 + Math.random() * 4; this.flash(.35, this.boltColor || '#dfe6ff'); }
       if (this.dist >= this.length) this.win();
     }
     bot(dt) {

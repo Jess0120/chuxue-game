@@ -139,8 +139,8 @@
   /** 延伸結局・原點（非原作）
    *   原型是最初的「隱藏結局・原點」，第 4 章劇本（小雅）加了阿昊與胖達在初遇現場的幾格。
    *   定位：三個正式結局之後的最後一場夢，不是正式結局，也不是原作情節。
-   *   暫時接在第 1 章之後（第 2～4 章完成後，改接在第 4 章共通尾聲後面）。 */
-  CX.CUTSCENES.hidden = [
+   *   接在第 4 章共通尾聲之後；拾回全部碎片（第 0～4 章共 45 片）才會播放。過場 id 為 origin（hidden 是舊名，保留為別名）。 */
+  CX.CUTSCENES.origin = [
     { img: 'p59', text: '初雪落下的那一刻，散落在夢裡的記憶，一片一片回到了掌心。', caption: '延伸結局・原點', footnote: '本結局為遊戲延伸，非原作情節。' },
     { img: 'p04', text: '我是為了什麼逃離，又為了什麼漂泊……現在，我終於想起來了。', footnote: '本結局為遊戲延伸，非原作情節。' },
     { img: 'p13', text: '那些腳步聲、那個雨夜、那扇怎麼喊也喊不開的門，還有門後，三十下，停兩下。', footnote: '本結局為遊戲延伸，非原作情節。' },
@@ -157,8 +157,10 @@
     { img: 'p59', text: '初雪落下的地方，是夢的原點。這一次，沒有人需要站在門外。', footnote: '本結局為遊戲延伸，非原作情節。' },
   ];
 
+  CX.CUTSCENES.hidden = CX.CUTSCENES.origin;
+
   CX.HIDDEN_TEXT = {
-    endHint: '收集所有記憶碎片，或許能看見延伸結局。',
+    endHint: '拾回所有記憶，或許能看見一場沒有人倒下的夢。',
     endDone: '你拾回了所有記憶，也看見了延伸結局。',
     galleryLocked: '延伸結局・原點（非原作）：未解鎖（拾回全部記憶碎片）',
     galleryUnlocked: '延伸結局・原點（非原作）：已解鎖',
@@ -256,12 +258,46 @@
     { type: 'jump', to: 'ch4' },
     { type: 'label', label: 'ch3_end4' },
     { type: 'cut', id: 'ch3_end4', bgm: 'none', snow: true },
-    // ── 第 4 章：製作中 ──
+    // ── 第 4 章　初雪（遊戲原創，js/story-ch4.js；B／C 的奔跑關在 js/stage-ch4.js）──
     { type: 'label', label: 'ch4' },
-    { type: 'checkpoint', id: 'ch4', name: '第四章　初雪（製作中）' },
-    { type: 'cut', id: 'wip4', bgm: 'snow', weather: 'none' },
-    // 延伸結局・原點：拾回全部碎片才播放（暫掛在這裡；第 4 章完成後移到 ch4 尾聲之後）
-    { type: 'cut', id: 'hidden', bgm: 'snow', snow: true, cond: 'allMemories' },
+    { type: 'checkpoint', id: 'ch4', name: '第四章　初雪' },
+    { type: 'cut', id: 'ch4_title', bgm: 'none', weather: 'none', fragTotal: 4 },
+    // 4-1 分歧：④刀 → A'；②＋trustDong≥3 → A；③＋trustHao≥3 → B；其餘 → C
+    { type: 'jump', to: 'ch4_A2', cond: 'midEnd==4' },
+    { type: 'jump', to: 'ch4_A', cond: 'midEnd==2 && trustDong>=3' },
+    { type: 'jump', to: 'ch4_B', cond: 'midEnd==3 && trustHao>=3' },
+    { type: 'cut', id: 'ch4_C1', bgm: 'tense', weather: 'embers' },      // 4-1C（信任不足）
+    { type: 'stage', id: 'run4c' },
+    { type: 'cut', id: 'ch4_C2', bgm: 'none', weather: 'embers' },
+    { type: 'jump', to: 'ch4_msg' },
+    { type: 'label', label: 'ch4_A' },
+    { type: 'cut', id: 'ch4_A', bgm: 'none', weather: 'embers' },        // 4-1A
+    { type: 'jump', to: 'ch4_msg' },
+    { type: 'label', label: 'ch4_A2' },
+    { type: 'cut', id: 'ch4_A2', bgm: 'none', snow: true },             // 4-1A'
+    { type: 'jump', to: 'ch4_msg' },
+    { type: 'label', label: 'ch4_B' },
+    { type: 'cut', id: 'ch4_B1', bgm: 'tense', weather: 'embers' },      // 4-1B
+    { type: 'stage', id: 'run4b' },
+    { type: 'cut', id: 'ch4_B2', bgm: 'none', weather: 'embers' },
+    // 4-2 語音留言（共通）
+    { type: 'label', label: 'ch4_msg' },
+    { type: 'cut', id: 'ch4_msg', bgm: 'none', weather: 'none' },
+    // 4-3 結局 A／B／C
+    { type: 'jump', to: 'ch4_endB', cond: 'ending==2' },
+    { type: 'jump', to: 'ch4_endC', cond: 'ending==3' },
+    { type: 'cut', id: 'ch4_endA', bgm: 'night', snow: true },
+    { type: 'jump', to: 'ch4_epi' },
+    { type: 'label', label: 'ch4_endB' },
+    { type: 'cut', id: 'ch4_endB', bgm: 'night', snow: true },
+    { type: 'jump', to: 'ch4_epi' },
+    { type: 'label', label: 'ch4_endC' },
+    { type: 'cut', id: 'ch4_endC', bgm: 'night', snow: true },
+    // 4-4 尾聲・初雪（共通）
+    { type: 'label', label: 'ch4_epi' },
+    { type: 'cut', id: 'ch4_epilogue', bgm: 'snow', snow: true },
+    // 〔延伸〕原點（非正典）：拾回全部 45 片碎片才播放
+    { type: 'cut', id: 'origin', bgm: 'snow', snow: true, cond: 'allMemories' },
     { type: 'end' },
   ];
 

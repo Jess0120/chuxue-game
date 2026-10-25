@@ -333,6 +333,7 @@ window.CX = window.CX || {};
     ch3Started: false,                   // 第 3 章真正開始後設為 true（之後圖鑑「重聽門後」就不再改 heardCount）
     doorOk: false, retryDoor: false, doorTries: 0,   // 節奏關「門後」：這一次有沒有聽出來／是否重聽／第幾次
     ran3: false,                         // 第 3 章 3-2：true = 照著夢跑上貨櫃（3-3），false = 不跑（3-4）
+    ending: 0,                           // 第 4 章：1＝結局 A 背影、2＝B 門內、3＝C 孤身一人（4-1 第一格設定）
     dreamRetry: false,                   // 第 3 章：看過結局①沉海、回到存檔點之後為 true
   };
   CX.vars = {};
