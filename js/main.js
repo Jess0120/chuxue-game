@@ -118,6 +118,10 @@
       this.bPrev = { x: 60, y: 486, w: 120, h: 36 };
       this.bNext = { x: W - 180, y: 486, w: 120, h: 36 };
       this.bHidden = { x: W / 2 + 90, y: 486, w: 190, h: 36 };
+      this.bDoor = { x: W / 2 - 280, y: 486, w: 190, h: 36 };
+    }
+    /** 第 2 章分頁：玩過第 2 章（拾回過任一片）就能「重聽門後」 */
+    get canDoor() { return this.ch === 'c2' && CX.MEMORIES.c2 && CX.MEMORIES.c2.some((_, i) => CX.memory.has('c2-' + (i + 1)));
     }
     setCh(ch) { if (ch !== this.ch) audio.sfx('page'); this.ch = ch; }
     step(d) { const i = this.chapters.indexOf(this.ch); this.setCh(this.chapters[(i + d + this.chapters.length) % this.chapters.length]); }
@@ -130,6 +134,7 @@
       ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].forEach((k, i) => { if (input.keyHit(k) && this.chapters[i]) this.setCh(this.chapters[i]); });
       if (input.keyHit('Escape', 'Backspace', 'Enter', 'NumpadEnter', 'KeyG')) return this.onBack();
       if (done && input.keyHit('KeyH')) return game.playHidden();
+      if (this.canDoor && input.keyHit('KeyR')) return game.replayDoor();
       if (input.tapped) {
         const tab = this.tabs.find(r => input.tapIn(r));
         if (tab) this.setCh(tab.ch);
@@ -137,6 +142,7 @@
         else if (input.tapIn(this.bNext)) this.step(1);
         else if (input.tapIn(this.bBack)) return this.onBack();
         else if (done && input.tapIn(this.bHidden)) return game.playHidden();
+        else if (this.canDoor && input.tapIn(this.bDoor)) return game.replayDoor();
       }
     }
     draw(c) {
@@ -181,6 +187,7 @@
       drawButton(c, this.bNext, '下一章 ▶', { size: 15 });
       drawButton(c, this.bBack, '返回', { size: 16 });
       if (done) drawButton(c, this.bHidden, (CX.HIDDEN_TEXT.galleryReplay || '重溫隱藏結局') + (CX.touchWanted ? '' : '（H）'), { size: 15, color: '#ffe0a0' });
+      if (this.canDoor) drawButton(c, this.bDoor, '重聽門後' + (CX.touchWanted ? '' : '（R）'), { size: 15, color: '#cfe8da' });
       if (!CX.touchWanted) CX.text(c, '← → 切換章節　Esc 返回', W / 2, 532, 11, 'rgba(200,210,240,.4)');
     }
   }
@@ -204,6 +211,8 @@
     get cur() { return this.list && this.list[this.i]; }
     get len() { const s = this.cur; return s && s.text ? s.text.length : 0; }
     /** 目前這一格可選的選項（cond 不成立的不顯示） */
+    /** 這一格還沒拾回的可點雪花 */
+    get hotspot() { const s = this.cur, h = s && s.hotspot; return h && !CX.stats.found.has(h.frag) ? h : null; }
     get choices() { const s = this.cur; return s && s.choice ? s.choice.filter(o => CX.evalCond(o.cond)) : null; }
     switchTo(id) {
       if (!CX.CUTSCENES[id]) { console.warn('[cut] 找不到過場', id); this.pendingFinish = true; return false; }
@@ -235,6 +244,7 @@
       const g = gotoId || (s && s.goto);
       if (g) { if (!this.switchTo(g)) return; }
       else this.i++;
+      if ((s && s.blank) || (this.cur && this.cur.blank)) this.fadeT = 1;   // 空白格前後硬切，不淡入淡出
       this.enterSlide();
     }
     advance() {
@@ -291,7 +301,14 @@
         if (CX.DEBUG.auto && this.t > .8) return this.choose(Math.min(CX.DEBUG.pick, ch.length - 1));
         return;
       }
+      // 畫面上可以點的雪花（第 2 章起）：點中就拾回，不翻頁
+      const hs = this.hotspot;
+      if (hs && this.t > .2) {
+        const hit = (input.tapped && input.tapIn({ x: hs.x - 44, y: hs.y - 44, w: 88, h: 88 })) || input.keyHit('KeyE') || (CX.DEBUG.auto && this.t > .35);
+        if (hit) { CX.awardMemory(hs.frag); return; }
+      }
       if (input.wasPressed('back')) { this.skipAhead(); return; }        // Esc 跳過（遇到選項會停下）
+      if (s.lock) { if (this.t > (s.hold || 1.5)) this.advance(); return; }   // 刻意空白格：不能手動翻，時間到自動翻
       if (this.t > .25 && input.confirm()) this.advance();
       // 沒有文字的格（標題卡、簡訊畫面）：hold 秒後自動翻頁
       if (!this.len && this.t > (s.hold || 2.4)) this.advance();
@@ -313,8 +330,18 @@
       c.globalAlpha = this.fadeT;
       this.drawBg(c, s, 1.02 + k * .08, (k - .5) * -16);   // 緩慢推鏡
       c.globalAlpha = 1;
+      if (s.tint === 'cold') { c.fillStyle = 'rgba(30,60,130,.28)'; c.fillRect(-20, -20, W + 40, H + 40); }   // 回放段的冷藍色調
       c.restore();
       this.weather.draw(c, .8);
+      if (s.tag) CX.text(c, s.tag, W - 104, 25, 14, s.tint === 'cold' ? '#b8d0ff' : 'rgba(240,242,250,.85)', { align: 'right', stroke: 'rgba(0,0,0,.55)', strokeW: 3 });
+      const hs = this.hotspot;
+      if (hs) {
+        const p = .6 + .4 * Math.sin(this.t * 4);
+        c.save(); c.shadowColor = '#cfe0ff'; c.shadowBlur = 18 * p; c.strokeStyle = `rgba(210,225,255,${.35 + .35 * p})`; c.lineWidth = 2;
+        c.beginPath(); c.arc(hs.x, hs.y, 26 + p * 4, 0, 6.283); c.stroke(); c.restore();
+        CX.drawFragment(c, hs.x, hs.y, this.t);
+        CX.text(c, hs.label + (CX.touchWanted ? '（點擊雪花）' : '（點擊雪花／E）'), hs.x, hs.y + 42, 13, '#dfe8ff', { stroke: 'rgba(0,0,0,.6)', strokeW: 3 });
+      }
       if (s.note) { c.save(); c.globalAlpha = clamp(this.t * 3, 0, 1); CX.drawNote(c, s.note, s.noteStyle); c.restore(); }
       const cap = s.caption || (s.year ? '2009年' : '');     // 畫面中央的大字標題
       if (cap) {
@@ -327,7 +354,7 @@
       const ch = this.chars >= this.len && this.choices;
       if (ch && ch.length) {
         c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, W, H);
-        this.choiceRects(ch.length).forEach((r, i) => drawButton(c, r, ch[i].text, { selected: i === this.sel, size: 18 }));
+        this.choiceRects(ch.length).forEach((r, i) => drawButton(c, r, ch[i].text, { selected: i === this.sel, size: 18, color: ch[i].dim ? 'rgba(170,176,190,.75)' : undefined }));
         if (!CX.touchWanted) CX.text(c, '↑ ↓ 選擇　Enter 決定', W / 2, 396, 13, 'rgba(220,226,245,.6)');
       }
       CX.text(c, CX.touchWanted ? '' : 'Esc 跳過劇情', W - 70, 530, 12, 'rgba(255,255,255,.45)');
@@ -351,14 +378,16 @@
           c.strokeStyle = who.color; c.lineWidth = 2; CX.roundRect(c, bx + 16, by + 14, 100, 100, 12); c.stroke();
           tx = bx + 136;
         }
-        c.fillStyle = 'rgba(8,10,22,.92)'; CX.roundRect(c, tagX, by - 18, 110, 32, 8); c.fill();
+        c.save(); c.font = CX.font(18, true); const tw = Math.max(110, c.measureText(who.name).width + 30); c.restore();
+        c.fillStyle = 'rgba(8,10,22,.92)'; CX.roundRect(c, tagX, by - 18, tw, 32, 8); c.fill();
         c.strokeStyle = who.color; c.lineWidth = 1.5; c.stroke();
-        CX.text(c, who.name, tagX + 55, by - 2, 18, who.color, { bold: true });
+        CX.text(c, who.name, tagX + tw / 2, by - 2, 18, who.color, { bold: true });
       }
       c.save();
-      c.font = CX.font(who ? 22 : 21); c.fillStyle = s.em ? '#ffe6b0' : who ? '#ffffff' : '#e4e8f6'; c.textBaseline = 'top';
+      const q = who && !who.noQuote;                       // 東宇的回放旁白等：有名牌、不加引號
+      c.font = CX.font(who ? 22 : 21); c.fillStyle = s.em ? '#ffe6b0' : who ? (who.textColor || '#ffffff') : '#e4e8f6'; c.textBaseline = 'top';
       const shown = s.text.slice(0, Math.floor(this.chars));
-      const lines = CX.wrapText(c, (who ? '「' : '') + shown + (who && this.chars >= s.text.length ? '」' : ''), bx + bw - tx - 30);
+      const lines = CX.wrapText(c, (q ? '「' : '') + shown + (q && this.chars >= s.text.length ? '」' : ''), bx + bw - tx - 30);
       lines.slice(0, 3).forEach((ln, i) => c.fillText(ln, tx, by + 22 + i * 32));
       c.restore();
       if (this.chars >= s.text.length && !s.choice) CX.text(c, '▼', bx + bw - 26, by + bh - 20 + Math.sin(this.t * 6) * 3, 14, '#c8d4ff');
@@ -526,9 +555,25 @@
       input.down = {};
     },
     startStage(id) {
-      audio.bgm(id === 2 ? 'none' : id === 4 ? 'rain' : 'tense');
+      const quiet = id === 2 || id === 'door';        // 節奏關：不放背景音樂、不顯示方向鍵
+      audio.bgm(quiet ? 'none' : id === 4 ? 'rain' : 'tense');
       this.scene = new CX.STAGES[id](this);
-      CX.setTouchLayout(id === 2 ? 'none' : id === 4 ? 'jump' : 'full');
+      CX.setTouchLayout(quiet ? 'none' : id === 4 ? 'jump' : 'full');
+    },
+    /** 圖鑑「重聽門後」：重玩節奏關。成功的話補上碎片；第 3 章真正開始之前，存檔裡的 heardCount 也一起改成 true */
+    replayDoor() {
+      console.log('[scene] stage door (replay)'); this.flowIdx = -1;
+      audio.bgm('none'); CX.setTouchLayout('none');
+      const st = new CX.STAGES.door(this, { replay: true });
+      st.onDone = s => {
+        if (s.success) {
+          CX.awardMemory('c2-3');
+          const cp = CX.checkpoint.load();
+          if (cp && cp.vars && !cp.vars.ch3Started && /^ch[23]$/.test(cp.id)) { CX.checkpoint.patch({ heardCount: true }); console.log('[door] replay → 存檔 heardCount = true'); }
+        }
+        this.openGallery('c2');
+      };
+      this.scene = st;
     },
     start() {
       resetStats(); CX.resetVars();
@@ -548,7 +593,7 @@
     },
     restartStage() { this.startStage(CX.FLOW[this.flowIdx].id); },
     toTitle() { audio.bgm('night'); this.flowIdx = -1; this.scene = new TitleScene(); },
-    openGallery() { console.log('[scene] gallery'); this.flowIdx = -1; this.scene = new GalleryScene(() => this.toTitle()); },
+    openGallery(ch) { console.log('[scene] gallery'); this.flowIdx = -1; this.scene = new GalleryScene(() => this.toTitle()); if (ch && CX.MEMORIES[ch]) this.scene.ch = ch; },
     /** 從圖鑑重溫隱藏結局，看完回到圖鑑 */
     playHidden() { console.log('[scene] cut hidden (replay)'); audio.bgm('snow'); this.flowIdx = -1; this.scene = new CutScene('hidden', { snow: true, onDone: () => this.openGallery() }); },
   };

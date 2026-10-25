@@ -21,6 +21,7 @@ window.CX = window.CX || {};
     fast: params.has('fast'),                     // ?fast=1 劇情自動快轉
     ch: parseInt(params.get('ch') || '0', 10),       // ?ch=1 直接從第 1 章開始（跳到該章的存檔點）
     pick: parseInt(params.get('pick') || '0', 10),   // ?auto=1&pick=1 自動遊玩時選項一律選第 N 個（0 起算）
+    fail: params.has('fail'),                     // ?auto=1&fail=1 節奏關「門後」第一次故意在休止拍按下（測試失敗→重聽）
   };
 
   /* ---------- 數學小工具 ---------- */
@@ -151,6 +152,19 @@ window.CX = window.CX || {};
       o.connect(g); g.connect(this.master);
       o.start(t); o.stop(t + dur + 0.05);
     },
+    /** 壓得很低的「人聲」：鋸齒波經過兩個共振峰濾波器，聽起來像隔著門的喃喃數數 */
+    voice(freq = 110, dur = .28, vol = .1, formant = 520) {
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq * 1.06, t); o.frequency.exponentialRampToValueAtTime(freq * .94, t + dur);
+      const f1 = this.ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = formant; f1.Q.value = 5;
+      const f2 = this.ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 900;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .04); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(this.master);
+      o.start(t); o.stop(t + dur + .05);
+    },
     /** 白雜訊（腳步、槍聲、爆炸、水花都用它加濾波器做出來） */
     noise(dur = .2, vol = .3, filterFreq = 1000, type = 'lowpass') {
       if (!this.ctx) return;
@@ -185,6 +199,11 @@ window.CX = window.CX || {};
         case 'fourhands': [130.8, 164.8, 196, 164.8, 146.8, 174.6, 220, 174.6].forEach((f, i) => this.tone(f, .7, 'sine', .1 * v, i * .22)); break;
         case 'boot': [523.3, 659.3, 784].forEach((f, i) => this.tone(f, .5, 'square', .025 * v, i * .09)); break;   // 2009 年摺疊機開機和弦
         case 'ring': [784, 880, 1046.5, 880, 784, 880, 1046.5, 1174.7].forEach((f, i) => this.tone(f, .2, 'square', .03 * v, i * .17)); break;
+        // ---- 第 2 章起新增 ----
+        case 'thud': this.noise(.18, .55 * v, 220); this.tone(58, .2, 'sine', .32 * v); break;          // 隔著鐵門的沉重悶響
+        case 'metal': this.noise(.12, .35 * v, 900, 'bandpass'); this.tone(140, .35, 'triangle', .1 * v); this.tone(97, .5, 'sine', .14 * v); break;
+        case 'rain': this.noise(1.6, .12 * v, 2400, 'highpass'); this.noise(1.6, .1 * v, 600); break;   // 一陣雨聲（空白格用）
+        case 'radio': [0, .18, .36].forEach(w => this.tone(1200, .08, 'square', .015 * v, w)); this.noise(.6, .05 * v, 1800, 'bandpass'); break;
         case 'trust': this.tone(660, .35, 'sine', .05 * v); this.tone(990, .4, 'sine', .03 * v, .06); break;
       }
     },
@@ -308,6 +327,8 @@ window.CX = window.CX || {};
     toldDream: false, heardCount: false, askedMore: false, goneAlone: false,
     midEnd: 0, threwKnife: false, stabbed: false,
     items: [],
+    ch3Started: false,                   // 第 3 章真正開始後設為 true（之後圖鑑「重聽門後」就不再改 heardCount）
+    doorOk: false, retryDoor: false, doorTries: 0,   // 節奏關「門後」：這一次有沒有聽出來／是否重聽／第幾次
   };
   CX.vars = {};
   CX.resetVars = function () { CX.vars = JSON.parse(JSON.stringify(CX.VAR_DEFAULTS)); };
@@ -350,6 +371,8 @@ window.CX = window.CX || {};
     save(id, name) { try { localStorage.setItem(CP_KEY, JSON.stringify({ id, name, vars: CX.vars, at: Date.now() })); } catch (e) {} console.log('[checkpoint] save', id); },
     load() { try { return JSON.parse(localStorage.getItem(CP_KEY) || 'null'); } catch (e) { return null; } },
     clear() { try { localStorage.removeItem(CP_KEY); } catch (e) {} },
+    /** 只改存檔裡的變數（圖鑑「重聽門後」用） */
+    patch(vars) { const cp = this.load(); if (!cp) return; Object.assign(cp.vars, vars); try { localStorage.setItem(CP_KEY, JSON.stringify(cp)); } catch (e) {} },
   };
 
   /* ---------- 圖片載入 ---------- */

@@ -108,7 +108,7 @@
         this.idle(dt);
         if (this.stateT > 1.8) {
           CX.stats.fragments += this.got; CX.stats.totalFragments += this.frags.length;
-          this.game.next();
+          if (this.onDone) { const f = this.onDone; this.onDone = null; f(this); } else this.game.next();
         }
       } else if (this.status === 'lose') {
         this.idle(dt);
@@ -738,4 +738,5 @@
   }
 
   CX.STAGES = { 1: Stage1, 2: Stage2, 3: Stage3, 4: Stage4 };
+  CX.Stage = Stage;      // 第 2 章起的新關卡（stage-door.js）繼承用
 })(window.CX);

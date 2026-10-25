@@ -204,9 +204,22 @@
     { type: 'cut', id: 'ch1_call', weather: 'none' },
     { type: 'cut', id: 'ch1_port', bgm: 'tense', weather: 'none' },
     { type: 'cut', id: 'ch1_night', bgm: 'rain', rain: true },
-    // ── 第 2～4 章：製作中 ──
-    { type: 'checkpoint', id: 'ch2', name: '第二章　頂樓（製作中）' },
-    { type: 'cut', id: 'wip', bgm: 'snow', weather: 'none' },
+    // ── 第 2 章　頂樓（遊戲原創，js/story-ch2.js；節奏關在 js/stage-door.js）──
+    { type: 'checkpoint', id: 'ch2', name: '第二章　頂樓' },
+    { type: 'cut', id: 'ch2_title', bgm: 'none', weather: 'none', fragTotal: 6 },
+    { type: 'cut', id: 'ch2_break', bgm: 'night', weather: 'none' },
+    { type: 'cut', id: 'ch2_dong', bgm: 'rain', rain: true },          // 東宇的版本（含刻意的 1.5 秒空白格）
+    { type: 'cut', id: 'ch2_door', bgm: 'rain', rain: true },
+    { type: 'label', label: 'door' },
+    { type: 'stage', id: 'door' },                                      // 節奏關「門後」：30 拍＋2 拍休止
+    { type: 'cut', id: 'ch2_door_result', bgm: 'none', rain: true },
+    { type: 'jump', to: 'door', cond: 'retryDoor' },                    // 失敗時選「再聽一次」
+    { type: 'cut', id: 'ch2_police', bgm: 'night', weather: 'none' },   // 站在哪一邊
+    { type: 'cut', id: 'ch2_after', bgm: 'night', weather: 'none' },
+    { type: 'cut', id: 'ch2_gate', bgm: 'snow', weather: 'none' },
+    // ── 第 3～4 章：製作中 ──
+    { type: 'checkpoint', id: 'ch3', name: '第三章　港口（製作中）' },
+    { type: 'cut', id: 'wip3', bgm: 'snow', weather: 'none' },
     // 延伸結局・原點：拾回全部碎片才播放（暫掛在這裡；第 4 章完成後移到 ch4 尾聲之後）
     { type: 'cut', id: 'hidden', bgm: 'snow', snow: true, cond: 'allMemories' },
     { type: 'end' },

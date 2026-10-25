@@ -113,6 +113,114 @@
       c.fillStyle = g; c.fillRect(380, 160, 360, 300);
     },
   };
+  /* ---------- 第 2 章〈頂樓〉 ---------- */
+  function rainLines(c, t, a = .3, n = 90) {
+    c.save(); c.strokeStyle = `rgba(190,205,230,${a})`; c.lineWidth = 1;
+    for (let i = 0; i < n; i++) { const x = (i * 71 + t * 90) % (W + 60) - 30, y = (i * 137 + t * 900 * (1 + i % 3 * .3)) % (H + 40) - 20; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 4, y + 18); c.stroke(); }
+    c.restore();
+  }
+  function cup(c, x, y, s = 1) {
+    c.fillStyle = '#e8e6df'; c.beginPath(); c.moveTo(x - 22 * s, y - 50 * s); c.lineTo(x + 22 * s, y - 50 * s); c.lineTo(x + 18 * s, y); c.lineTo(x - 18 * s, y); c.closePath(); c.fill();
+    c.fillStyle = '#2f5d8a'; c.fillRect(x - 12 * s, y - 32 * s, 24 * s, 10 * s);       // 貨運公司的商標
+    c.fillStyle = '#5a5a60'; c.beginPath(); c.moveTo(x + 6 * s, y - 50 * s); c.lineTo(x + 12 * s, y - 50 * s); c.lineTo(x + 9 * s, y - 45 * s); c.fill();   // 杯緣的缺口
+  }
+  function chainLock(c, x, y, open) {
+    c.strokeStyle = '#8a8f98'; c.lineWidth = 3;
+    for (let i = 0; i < 6; i++) { c.beginPath(); c.ellipse(x - 40 + i * 14, y + Math.sin(i) * 3, 8, 5, 0, 0, 6.283); c.stroke(); }
+    c.fillStyle = '#b89a4a'; CX.roundRect(c, x + 44, y - 4, 22, 26, 4); c.fill();
+    c.strokeStyle = '#b89a4a'; c.lineWidth = 3; c.beginPath(); c.arc(x + 55, y - 4, 7, Math.PI, open ? Math.PI * 1.6 : 0); c.stroke();
+  }
+  Object.assign(CX.BACKDROPS, {
+    /** 第七區・員工休息室（清晨）：鐵皮屋、閃爍的日光燈、泡麵碗、缺口杯子 */
+    breakroom(c, t) {
+      sky(c, '#3a3f47', '#22252b');
+      c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 2; for (let x = 0; x < W; x += 24) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 330); c.stroke(); }
+      c.fillStyle = '#8ea2b8'; c.fillRect(620, 70, 240, 150);                          // 窗：天剛亮
+      const g = c.createLinearGradient(0, 70, 0, 220); g.addColorStop(0, 'rgba(255,214,170,.5)'); g.addColorStop(1, 'rgba(255,214,170,0)'); c.fillStyle = g; c.fillRect(620, 70, 240, 150);
+      harbor(c, 620, 70, 240, 150, { far: 'rgba(60,66,78,1)' }); windowFrame(c, 620, 70, 240, 150);
+      const flick = (Math.sin(t * 23) > .6 || Math.sin(t * 3.1) > .95) ? .25 : .85;     // 一支日光燈在閃
+      c.fillStyle = `rgba(235,245,255,${flick})`; c.fillRect(200, 26, 180, 8); c.fillStyle = 'rgba(235,245,255,.85)'; c.fillRect(420, 26, 180, 8);
+      c.fillStyle = '#5a5248'; c.fillRect(110, 330, 740, 22); c.fillStyle = '#3c362f'; c.fillRect(110, 352, 740, 188);
+      c.fillStyle = '#d9d2c4'; c.beginPath(); c.ellipse(260, 326, 40, 12, 0, 0, 6.283); c.fill();   // 泡麵碗
+      c.fillStyle = '#c7c9cc'; CX.roundRect(c, 690, 268, 60, 62, 8); c.fill(); c.fillStyle = '#2a2c30'; c.fillRect(712, 254, 16, 16);   // 電熱水壺
+      cup(c, 480, 330, 1.2);
+    },
+    /** 2009・東宇的房間：家用電話話筒的特寫 */
+    phoneClose(c, t) {
+      sky(c, '#141a2a', '#0a0d16');
+      c.fillStyle = 'rgba(120,150,210,.08)'; c.fillRect(80, 60, 260, 200); rainOnGlass(c, 80, 60, 260, 200, t); windowFrame(c, 80, 60, 260, 200);
+      c.save(); c.translate(560, 300); c.rotate(-.35);
+      c.fillStyle = '#d7d4cc'; CX.roundRect(c, -150, -26, 300, 52, 24); c.fill();
+      c.fillStyle = '#bdb9b0'; c.beginPath(); c.ellipse(-130, 0, 46, 40, 0, 0, 6.283); c.fill(); c.beginPath(); c.ellipse(130, 0, 46, 40, 0, 0, 6.283); c.fill();
+      c.fillStyle = '#4a4740'; for (let i = 0; i < 7; i++) { c.beginPath(); c.arc(-140 + (i % 3) * 10, -12 + Math.floor(i / 3) * 10, 2.5, 0, 6.283); c.fill(); }
+      c.restore();
+      c.strokeStyle = '#8f8a80'; c.lineWidth = 3; c.beginPath(); for (let i = 0; i < 14; i++) c.arc(700 + i * 14, 400 + Math.sin(i) * 4, 8, 0, 6.283); c.stroke();
+    },
+    /** 2009・頂樓（大雨）：左邊水塔與鐵架，右邊及腰欄杆，門口地上有鐵鍊和打開的掛鎖 */
+    roof(c, t) {
+      sky(c, '#1a2232', '#0c1018');
+      c.fillStyle = '#0e1320'; for (let i = 0; i < 18; i++) c.fillRect(i * 58, 300 - (i * 37 % 90), 50, 200);   // 遠方的城市
+      c.fillStyle = '#2a3040'; c.fillRect(0, 380, W, 160);                                  // 地面積水
+      c.fillStyle = 'rgba(150,170,210,.08)'; for (let i = 0; i < 6; i++) c.fillRect(80 + i * 140, 430 + (i % 2) * 40, 90, 4);
+      c.fillStyle = '#39404e'; c.fillRect(60, 150, 170, 140); c.fillStyle = '#2b313d'; c.beginPath(); c.ellipse(145, 150, 85, 18, 0, 0, 6.283); c.fill();   // 水塔
+      c.strokeStyle = '#4a5162'; c.lineWidth = 7; c.beginPath(); c.moveTo(75, 290); c.lineTo(85, 390); c.moveTo(215, 290); c.lineTo(205, 390); c.moveTo(80, 330); c.lineTo(210, 330); c.stroke();
+      c.strokeStyle = '#59606e'; c.lineWidth = 5; c.beginPath(); c.moveTo(640, 330); c.lineTo(W, 330); c.stroke();   // 欄杆
+      c.lineWidth = 3; for (let x = 650; x < W; x += 40) { c.beginPath(); c.moveTo(x, 330); c.lineTo(x, 385); c.stroke(); }
+      c.fillStyle = '#20252f'; c.fillRect(360, 170, 130, 215); c.strokeStyle = '#3b4250'; c.lineWidth = 4; c.strokeRect(360, 170, 130, 215);   // 樓梯間的門
+      chainLock(c, 420, 300, true);                         // 門把上的鐵鍊與打開的掛鎖
+      rainLines(c, t, .28);
+    },
+    /** 胖達的一隻手攤在積水裡，熊貓貼紙的手機從口袋滑出一半（不畫傷口） */
+    roofAfter(c, t) {
+      sky(c, '#121826', '#080b12');
+      c.fillStyle = '#1d2330'; c.fillRect(0, 300, W, 240);
+      c.fillStyle = 'rgba(150,170,210,.1)'; c.beginPath(); c.ellipse(480, 420, 300, 60, 0, 0, 6.283); c.fill();
+      c.fillStyle = '#c8b8a8'; c.beginPath(); c.ellipse(420, 410, 60, 18, -.1, 0, 6.283); c.fill();     // 手
+      for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(362 - i * 4, 392 + i * 11, 16, 6, -.4, 0, 6.283); c.fill(); }
+      c.fillStyle = '#b8bcc4'; CX.roundRect(c, 520, 380, 50, 78, 6); c.fill();                              // 摺疊手機
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(545, 410, 11, 0, 6.283); c.fill();
+      c.fillStyle = '#111'; c.beginPath(); c.arc(539, 406, 3.5, 0, 6.283); c.arc(551, 406, 3.5, 0, 6.283); c.fill();   // 熊貓貼紙
+      rainLines(c, t, .22, 70);
+    },
+    /** 刻意的缺格：一片空白的灰（第 4 章 4-2 才補上） */
+    gray(c) { c.fillStyle = '#8a8c90'; c.fillRect(0, 0, W, H); },
+    /** 頂樓門外的樓梯間：昏暗，只有逃生指示燈的綠光 */
+    stair(c, t) {
+      sky(c, '#0a0e0c', '#050706');
+      c.fillStyle = '#1a201d'; c.fillRect(330, 90, 300, 360); c.strokeStyle = '#2c3530'; c.lineWidth = 6; c.strokeRect(330, 90, 300, 360);
+      c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = 2; for (let y = 120; y < 450; y += 40) { c.beginPath(); c.moveTo(336, y); c.lineTo(624, y); c.stroke(); }
+      const g = c.createRadialGradient(480, 60, 4, 480, 60, 220); g.addColorStop(0, 'rgba(60,255,140,.35)'); g.addColorStop(1, 'rgba(60,255,140,0)');
+      c.fillStyle = g; c.fillRect(200, 0, 560, 300);
+      c.fillStyle = '#2fd47a'; c.fillRect(440, 40, 80, 26); c.fillStyle = '#0b2a18'; c.fillRect(452, 46, 18, 14);
+      for (let i = 0; i < 5; i++) { c.fillStyle = `rgba(40,48,44,${1 - i * .15})`; c.fillRect(0, 450 + i * 18, W, 18); }
+    },
+    /** 2009・刑警隊的小房間：白色日光燈，只畫手和筆錄紙 */
+    police(c, t) {
+      sky(c, '#c9ccd0', '#9da1a7');
+      c.fillStyle = 'rgba(255,255,255,.9)'; c.fillRect(300, 20, 360, 10);
+      c.fillStyle = '#6b6f76'; c.fillRect(0, 330, W, 210);
+      c.fillStyle = '#f4f2ec'; c.save(); c.translate(500, 420); c.rotate(-.06); c.fillRect(-150, -90, 300, 200);
+      c.strokeStyle = 'rgba(80,90,120,.35)'; c.lineWidth = 1; for (let y = -70; y < 100; y += 18) { c.beginPath(); c.moveTo(-130, y); c.lineTo(130, y); c.stroke(); }
+      c.restore();
+      c.fillStyle = '#d8c3ad'; c.beginPath(); c.ellipse(650, 400, 46, 22, -.3, 0, 6.283); c.fill();       // 女警的手
+      c.strokeStyle = '#20232a'; c.lineWidth = 6; c.beginPath(); c.moveTo(625, 395); c.lineTo(570, 440); c.stroke();
+      c.fillStyle = 'rgba(160,140,120,.55)'; c.beginPath(); c.ellipse(150, 470, 120, 60, 0, 0, 6.283); c.fill();   // 雨真身上的毛毯一角
+    },
+    /** 閘門外・傍晚：鉛灰色天空 */
+    gateDusk(c, t) {
+      CX.BACKDROPS.gate(c, t);
+      c.fillStyle = 'rgba(30,36,52,.45)'; c.fillRect(0, 0, W, H);
+      const g = c.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, 'rgba(60,64,80,.6)'); g.addColorStop(1, 'rgba(160,120,110,.15)'); c.fillStyle = g; c.fillRect(0, 0, W, 260);
+    },
+    /** 東宇走進堆場，背影被一排一排的貨櫃吞掉 */
+    yardDusk(c, t) {
+      sky(c, '#4a4f5c', '#262a34');
+      harbor(c, 0, 20, W, 420, { far: 'rgba(40,44,54,1)' });
+      c.fillStyle = '#2c3038'; c.fillRect(0, 400, W, 140);
+      if (CX.drawDongyu) { c.save(); c.globalAlpha *= Math.max(0, 1 - t / 9); CX.drawDongyu(c, 560 + Math.min(t, 9) * 8, 450, { scale: .9 - Math.min(t, 9) * .03, facing: 1, t }); c.restore(); }
+    },
+  });
+
   CX.drawBackdrop = function (c, key, t = 0) {
     const f = CX.BACKDROPS[key];
     if (f) f(c, t); else { c.fillStyle = '#0a0a12'; c.fillRect(0, 0, W, H); }
