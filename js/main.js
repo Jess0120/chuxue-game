@@ -367,16 +367,18 @@
     }
     /** Esc：快轉到下一個選項（途中的變數與碎片照常生效）；沒有選項就結束整段 */
     skipAhead() {
+      let stay = false;                              // 剛跳過條件不成立的格：這一輪不要再往下多跳一格
       for (let guard = 0; guard < 500; guard++) {
         const s = this.cur;
-        if (s && !s.choice) {
+        if (stay) stay = false;
+        else if (s && !s.choice) {
           const g = s.goto;
           if (g) { if (!this.switchTo(g)) break; }
           else this.i++;
         }
         const n = this.cur;
         if (!n) break;
-        if (!CX.evalCond(n.cond)) { this.i++; continue; }
+        if (!CX.evalCond(n.cond)) { this.i++; stay = true; continue; }
         if (n.choice) { this.prev = null; this.enterSlide(); this.chars = this.len; return; }
         if (n.goto && n.text == null) { CX.applyEffects(n); continue; }
         CX.applyEffects(n); if (n.frag) CX.awardMemory(n.frag);
@@ -531,6 +533,8 @@
     }
     get visible() { return this.def.objects.filter(o => !o.after || o.after.every(a => this.done.has(a))); }
     get required() { return this.def.objects.filter(o => !o.exit); }
+    /** 目前選取的物件；選到已調查過的，就改成下一個還沒調查的（全部調查完就是出口） */
+    pick(v) { const o = v[this.sel]; return o && !this.done.has(o.id) ? o : (v.find(x => !this.done.has(x.id)) || o); }
     investigate(o) {
       if (!o) return;
       audio.sfx('page'); console.log('[explore]', this.id, o.id);
@@ -549,19 +553,21 @@
       if (CX.DEBUG.auto) { if (this.t > .6) this.investigate(v.find(x => !this.done.has(x.id))); return; }
       if (input.keyHit(...PREV_KEYS)) this.sel = (this.sel + v.length - 1) % v.length;
       if (input.keyHit(...NEXT_KEYS)) this.sel = (this.sel + 1) % v.length;
-      if (input.tapped) { const o = v.find(x => input.tapIn({ x: x.x - 8, y: x.y - 8, w: x.w + 16, h: x.h + 16 })); if (o) this.investigate(o); }
-      else if (input.keyHit(...OK_KEYS)) this.investigate(v[this.sel]);
+      // 點到物件就調查那一個；點在物件以外的地方（或按確認鍵）＝調查目前選取的物件（預設是下一個還沒調查的），
+      // 不然習慣「點畫面翻頁」的玩家會以為遊戲卡住了。
+      if (input.tapped) { const o = v.find(x => input.tapIn({ x: x.x - 8, y: x.y - 8, w: x.w + 16, h: x.h + 16 })); this.investigate(o || this.pick(v)); }
+      else if (input.keyHit(...OK_KEYS) || input.confirm()) this.investigate(this.pick(v));
     }
     draw(c) {
       CX.drawBackdrop(c, this.def.bg, this.t);
       const v = this.visible;
-      v.forEach((o, k) => CX.drawProp(c, o, { t: this.t, sel: k === this.sel && !CX.touchWanted, done: this.done.has(o.id), labels: CX.touchWanted, opened: this.done.has('box') }));
+      v.forEach((o, k) => CX.drawProp(c, o, { t: this.t, sel: k === this.sel && !CX.touchWanted, done: this.done.has(o.id), labels: CX.touchWanted || !this.done.has(o.id), opened: this.done.has('box') }));
       c.fillStyle = 'rgba(4,6,14,.72)'; CX.roundRect(c, 24, 18, 470, 62, 10); c.fill();
       CX.text(c, this.def.title, 44, 38, 20, '#f2f5ff', { align: 'left', bold: true });
       const req = this.required, n = req.filter(o => this.done.has(o.id)).length;
       CX.text(c, `調查　${n} / ${req.length}`, 470, 38, 15, '#cfd8f5', { align: 'right' });
       CX.text(c, this.def.hint, 44, 63, 13, 'rgba(210,218,240,.75)', { align: 'left' });
-      if (!CX.touchWanted) CX.text(c, '← → 選擇物件　Enter / 空白鍵 調查　（也可以直接點擊）', W / 2, 522, 13, 'rgba(220,226,245,.6)');
+      if (!CX.touchWanted) CX.text(c, '點擊物件調查（點其他地方＝調查下一個）　← → 選擇　Enter / 空白鍵 調查', W / 2, 522, 13, 'rgba(220,226,245,.6)');
     }
   }
 
@@ -755,16 +761,24 @@
   CX.game = game;
 
   /* ---------- 主迴圈 ---------- */
-  let last = performance.now();
+  let last = performance.now(), errFrames = 0;
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now;   // 限制最大 dt，切換分頁回來不會瞬移
-    game.scene.update(dt);
-    overlay.update(dt);
-    input.endFrame();
-    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-    game.scene.draw(ctx);
-    overlay.draw(ctx);
-    requestAnimationFrame(frame);
+    requestAnimationFrame(frame);          // 先排下一幀：就算這一幀出錯，遊戲也不會整個停住
+    try {
+      game.scene.update(dt);
+      overlay.update(dt);
+      input.endFrame();
+      ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+      game.scene.draw(ctx);
+      overlay.draw(ctx);
+      errFrames = 0;
+    } catch (e) {
+      input.endFrame();
+      console.error('[frame] 執行錯誤', e);
+      // 同一個場景連續出錯約 2 秒：直接往流程下一步走，避免完全卡死
+      if (++errFrames > 120 && game.flowIdx >= 0) { errFrames = 0; console.warn('[frame] 場景一直出錯，跳到下一步'); game.next(); }
+    }
   }
 
   /* ---------- 啟動 ---------- */
